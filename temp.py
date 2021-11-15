@@ -10,35 +10,43 @@ ix,iy = -1,-1
 
 # 1. set up drawing capability where we hold down to draw a line
 # 2. set up couple of groups (red, green, blue)
-# 3. 
-
-def draw_circle(event,x,y,flags,param):
-    global ix,iy,drawing,mode
-    if event == cv.EVENT_LBUTTONDOWN:
-        drawing = True
-        ix,iy = x,y
-    elif event == cv.EVENT_MOUSEMOVE:
-        if drawing == True:
-            if mode == True:
-                cv.rectangle(img,(ix,iy),(x,y),(0,255,0),1)
-            else:
-                cv.circle(img,(x,y),5,(0,0,255),-1)
-    elif event == cv.EVENT_LBUTTONUP:
-        drawing = False
-        if mode == True:
-            cv.rectangle(img,(ix,iy),(x,y),(0,255,0),1)
-        else:
-            cv.circle(img, (x,y), 5, (0,0,255), -1)
+# 3. profit??
 
 
-img = np.zeros((512, 512, 3), np.uint8)
+colors = [
+        (255,0,0), # blue
+        (0,255,0), # green
+        (0,0,255), # red
+        ]
+# Loading the default webcam of PC.
+cap = cv.VideoCapture(0)
 
-cv.namedWindow('image')
-cv.setMouseCallback('image', draw_circle)
-
+# Keep looping
 while True:
-    cv.imshow('image', img)
-    if cv.waitKey(20) & 0xFF == 27:
-        break
+    # Reading the frame from the camera
+    ret, frame = cap.read()
 
+    # Adding the colour buttons to the live frame for colour access
+    frame = cv.rectangle(frame, (40,1), (140,65), (122,122,122), -1)
+    frame = cv.rectangle(frame, (160,1), (255,65), colors[0], -1)
+    frame = cv.rectangle(frame, (275,1), (370,65), colors[1], -1)
+    frame = cv.rectangle(frame, (390,1), (485,65), colors[2], -1)
+
+
+    cv.putText(frame, "CLEAR ALL", (49, 33), cv.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2, cv.LINE_AA)
+    cv.putText(frame, "BLUE", (185, 33), cv.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2, cv.LINE_AA)
+    cv.putText(frame, "GREEN", (298, 33), cv.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2, cv.LINE_AA)
+    cv.putText(frame, "RED", (420, 33), cv.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2, cv.LINE_AA)
+
+
+
+    cv.imshow("buttons", frame)
+
+    stroke = cv.waitKey(1) & 0xff  
+    if stroke == ord('q') or stroke == 27: # press 'q' or 'esc' to quit
+        break
+    print("here")
+
+cap.release()
 cv.destroyAllWindows()
+
