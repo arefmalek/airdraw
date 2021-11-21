@@ -1,3 +1,13 @@
+# vscode
+.vscode/
+venv/
+
+# mac stuff b/c I wrote a video file
+.DS_Store
+
+# video files I'm playing w lol
+*.mp4
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
