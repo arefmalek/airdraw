@@ -20,9 +20,6 @@ detector = handDetector()
 width = int(cap.get(cv.CAP_PROP_FRAME_WIDTH) + 0.5)
 height = int(cap.get(cv.CAP_PROP_FRAME_HEIGHT) + 0.5)
 
-fourcc = cv.VideoWriter_fourcc(*'MP4V')
-out = cv.VideoWriter('./output.mp4', fourcc, 20.0, (width,  height))
-
 
 # Keep looping
 while True:
@@ -67,7 +64,6 @@ while True:
         dr, dd = pt
         cv.line(frame, (prev_dr, prev_dd), (dr, dd), colors[2], 5)
 
-    out.write(frame)
     cv.imshow("buttons", frame)
 
     stroke = cv.waitKey(1) & 0xff  
@@ -75,5 +71,4 @@ while True:
         break
 
 cap.release()
-out.release()
 cv.destroyAllWindows()
