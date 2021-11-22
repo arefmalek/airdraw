@@ -3,7 +3,7 @@ import mediapipe as mp
 import numpy as np
 
 
-class handDetector():
+class HandDetector():
     """
     class that deals with the hand processing of the project
     """
@@ -50,7 +50,7 @@ class handDetector():
 
         return landmarks
     
-    def detect_finger_mode(self, landmarks):
+    def detect_finger_mode(self, landmarks, threshhold=0.9):
         """
         This function takes in the image with detected hand signs and tells us
         if we are in drawing mode or not
@@ -58,28 +58,36 @@ class handDetector():
         we do this by getting the dot product of 2 vectors (of index and middle
         fingers)
 
+        Arguments:
+            landmarks: finger points
+            threshhold: value of 
+        returns:
+            True if dotProduct is above threshhold (drawing mode off), False otherwise
         """
         index_vector = [landmarks[8][1] - landmarks[6][1], landmarks[8][2] - landmarks[6][2]]
         middle_vector = [landmarks[12][1] - landmarks[10][1], landmarks[12][2]
                 - landmarks[10][2]]
         val = np.dot(index_vector, middle_vector)
-        val /= (index_vector[0]**2 + index_vector[1]**2)**.5
-        val /= (middle_vector[0]**2 + middle_vector[1]**2)**.5
-        return val
+
+        vector_magnitude = lambda vector: sum(dim**2 for dim in vector)**.5
+        val /= (vector_magnitude(index_vector) * vector_magnitude(middle_vector))
+        return val < threshhold
 
 def main():
 
     cap = cv.VideoCapture(0)
-    detector = handDetector()
+    detector = HandDetector()
 
     while True:
         _, img = cap.read()
+        img = cv.flip(img, 1)
         img = detector.detect_hands(img)
 
         landmark_list = detector.detect_landmarks(img.shape)
         if len(landmark_list) != 0:
             val = detector.detect_finger_mode(landmark_list)
-            print(val, landmark_list[4])
+            cv.putText(img, f"Dot Product: {val}", (50, 50),
+                    cv.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2, cv.LINE_AA)
 
         cv.imshow('Camera', img)
         if cv.waitKey(1) & 0xFF == ord('q'):
