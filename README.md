@@ -13,7 +13,7 @@
 `python3 airdraw.py`
 
 ## Why?
-I've seen tons of tries of this sort of thing with HSV masks, and while it's more true to image processing that openCV caters for, I was sort of against letting our own styluses [go to waste](https://github.com/arefmalek/airdraw/blob/main/demo.gif)
+I've seen tons of tries of this sort of thing with HSV masks, and while it's more true to image processing that openCV caters for, I was sort of against letting our own styluses [go to waste](https://money.cnn.com/2015/09/10/technology/apple-pencil-steve-jobs-stylus/index.html)
 Once I found out about [mediapipe](https://google.github.io/mediapipe/), I decided I would give this thing a shot! What you see is the first run-through of the project. I have a more detailed explanation on my blog post.
 
 ## How?
