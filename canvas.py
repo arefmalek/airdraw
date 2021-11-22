@@ -1,5 +1,3 @@
-# TODO: figure out what this class needs to work
-
 import cv2 as cv
 
 class Canvas():
@@ -17,36 +15,43 @@ class Canvas():
         self.lines = []
 
     # TODO: support multiple colors
-    def draw_color_data(self, frame):
+    def draw_color_data(self, frame, point = (0, 0)):
         """
         Draw the boxes that show colors, as well as the current selected option
             frame: numpy array representing the current image
         """
         height, width, _ = frame.shape
+        x, y = point
 
         # add clear_button
-        frame = cv.rectangle(frame, (40, 1), (140, 65))
-        cv.putText(frame, "CLEAR ALL", (49,33))
-        button_width = int(width - 150)
+        frame = cv.rectangle(frame, (40, 1), (140, 65), (122, 122, 122), -1)
+        cv.putText(frame, "CLEAR ALL", (49,33), cv.FONT_HERSHEY_SIMPLEX, 
+                .5, (255, 255, 255), 2, cv.LINE_AA)
 
-#         for name, color in self.colors.items():
-# 
-#             cv.rectangle(frame, (), (), color, -1)
-#             if name == self.color:
-#                 cv.rectangle 
-
-    # Adding the colour buttons to the live frame for colour access
-    # frame = cv.rectangle(frame, (40,1), (140,65), (122,122,122), -1)
-    # frame = cv.rectangle(frame, (160,1), (255,65), colors[0], -1)
-    # frame = cv.rectangle(frame, (275,1), (370,65), colors[1], -1)
-    # frame = cv.rectangle(frame, (390,1), (485,65), colors[2], -1)
-
-
-    # cv.putText(frame, "CLEAR ALL", (49, 33), cv.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2, cv.LINE_AA)
-    # cv.putText(frame, "BLUE", (185, 33), cv.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2, cv.LINE_AA)
-    # cv.putText(frame, "GREEN", (298, 33), cv.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2, cv.LINE_AA)
-    # cv.putText(frame, "RED", (420, 33), cv.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2, cv.LINE_AA)
-
+        if (1 <= y <= 65 and 40 <= x <= 140):
+            self.lines = []
+        
+        button_width = int((width - 150) / len(self.colors) - 20)
+        x_dist = 160
+        
+        for name_color, color_arr in self.colors.items():
+            # start drawing the button
+            frame = cv.rectangle(frame, (x_dist, 1), (x_dist + button_width, 65),
+                    color_arr, -1)
+            # put text into the button
+            cv.putText(frame, name_color, (x_dist + 10, 33),
+                    cv.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2,
+                    cv.LINE_AA)
+            # just changing inputs if we hover over there
+            if (1 <= y <= 65 and x_dist <= x <= x_dist + button_width):
+                # button change!
+                self.color = name_color
+                self.end_line()
+            if name_color == self.color:
+                frame = cv.rectangle(frame, (x_dist, 1), (x_dist
+                    + button_width, 65), (0, 255, 255), 5)
+            x_dist += button_width + 20
+        return frame
 
     def push_point(self, point):
         """
@@ -109,11 +114,6 @@ class Line():
         return f"\tcolor({self.color})\n \
                 \tactive({self.active})\n \
                 points({self.points})"
-
-def test_boxes():
-    print("yes")
-
-
 def main():
     canvas = Canvas()
     line = Line("BLUE")

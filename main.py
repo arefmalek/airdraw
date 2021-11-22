@@ -4,55 +4,73 @@ from hands import HandDetector
 from canvas import Canvas
 
 
-# 1. set up drawing capability where we hold down to draw a line
-# 2. set up couple of groups (red, green, blue)
-# 3. profit??
+def record(cap):
+    """
+    helper function to set up to create a video writer to record demos with
 
-
-# Loading the default webcam of PC.
-canvas = Canvas()
-detector = HandDetector()
-
-cap = cv.VideoCapture(0)
-
-
-# recording video stuff I need 
-width = int(cap.get(cv.CAP_PROP_FRAME_WIDTH) + 0.5)
-height = int(cap.get(cv.CAP_PROP_FRAME_HEIGHT) + 0.5)
-
-
-# Keep looping
-while True:
-    # Reading the frame from the camera
-    ret, frame = cap.read()
-    frame = cv.flip(frame, 1)
-
+    Arguments:
+        cap: the videocapture object we get data from
+    """
+    width = int(cap.get(cv.CAP_PROP_FRAME_WIDTH) + 0.5)
+    height = int(cap.get(cv.CAP_PROP_FRAME_HEIGHT) + 0.5)
     
-    frame = detector.detect_hands(frame)
-    landmark_list = detector.detect_landmarks(frame.shape)
-    drawing = False
+    fourcc = cv.VideoWriter_fourcc(*'MP4V')
+    out = cv.VideoWriter('./output.mp4', fourcc, 20.0, (width,  height))
+    return out
 
-    if len(landmark_list) != 0:
-        drawing = detector.detect_finger_mode(landmark_list)
+def main(recording = False):
+    # Loading the default webcam of PC.
+    canvas = Canvas()
+    detector = HandDetector()
     
-    # add the point of data onto the stack
-    if drawing:
-        dr, dd = landmark_list[8][1:]
-
-        rows, cols, _ = frame.shape
-        if 0 < dr < cols and 0 < dd < rows:
-            canvas.push_point((dr, dd))
-    else:
-        canvas.end_line()
-
-    # draw the stack 
-    frame = canvas.draw_lines(frame)
+    cap = cv.VideoCapture(0)
     
-    cv.imshow("buttons", frame)
+    out = None
+    if recording:
+        out = record(cap)
+    
+    # Keep looping
+    while True:
+        # Reading the frame from the camera
+        ret, frame = cap.read()
+        frame = cv.flip(frame, 1)
+    
+        
+        frame = detector.detect_hands(frame)
+        landmark_list = detector.detect_landmarks(frame.shape)
+        drawing = False
+    
+        if len(landmark_list) != 0:
+            drawing = detector.detect_finger_mode(landmark_list)
+        
+        # add the point of data onto the stack
+        if drawing:
+            dr, dd = landmark_list[8][1:]
+    
+            frame = canvas.draw_color_data(frame, (dr, dd))
+    
+            rows, cols, _ = frame.shape
+            if 0 < dr < cols and 0 < dd < rows:
+                canvas.push_point((dr, dd))
+        else:
+            frame = canvas.draw_color_data(frame)
+            canvas.end_line()
+    
+        # draw the stack 
+        frame = canvas.draw_lines(frame)
+        
+        if recording:
+            out.write(frame)
+        cv.imshow("buttons", frame)
+    
+        stroke = cv.waitKey(1) & 0xff  
+        if stroke == ord('q') or stroke == 27: # press 'q' or 'esc' to quit
+            break
+    
+    if recording:
+        out.release()
+    cap.release()
+    cv.destroyAllWindows()
 
-    stroke = cv.waitKey(1) & 0xff  
-    if stroke == ord('q') or stroke == 27: # press 'q' or 'esc' to quit
-        break
-
-cap.release()
-cv.destroyAllWindows()
+if __name__ == '__main__':
+    main(recording = True)
