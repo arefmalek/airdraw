@@ -73,4 +73,4 @@ def main(recording = False):
     cv.destroyAllWindows()
 
 if __name__ == '__main__':
-    main(recording = True)
+    main()

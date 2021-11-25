@@ -3,13 +3,15 @@ import cv2 as cv
 class Canvas():
     """ 
     class that deals with drawing onto the screen
+    Operates the dashboard of the screen (colors, clear all) as well as
+    draw lines onto the screen
     """
 
     def __init__(self):
         self.colors = {
                 "BLUE": (255,0,0),
                 "GREEN": (0,255,0),
-                "RED": (0,0,255)
+                "RED": (0,0,255),
                 }
         self.color = "GREEN" # only really used to initialize lines
         self.lines = []
@@ -17,40 +19,75 @@ class Canvas():
     # TODO: support multiple colors
     def draw_color_data(self, frame, point = (0, 0)):
         """
-        Draw the boxes that show colors, as well as the current selected option
+        Creates the dashboard and processes input from the hand (if in Drawing mode)
+
+        Arguments:    
             frame: numpy array representing the current image
+            point: the x, y coordinates corresponding to the finger if in drawing mode.
+                    defaults to (0, 0) because we may not even have the 
         """
-        height, width, _ = frame.shape
+        frame_height, frame_width, _ = frame.shape
         x, y = point
 
         # add clear_button
-        frame = cv.rectangle(frame, (40, 1), (140, 65), (122, 122, 122), -1)
-        cv.putText(frame, "CLEAR ALL", (49,33), cv.FONT_HERSHEY_SIMPLEX, 
-                .5, (255, 255, 255), 2, cv.LINE_AA)
+        clear_button_width = int(frame_width *.2) # clear button always takes 20% of screen space
+        clear_button_height = int(frame_height * .15) # all button take up 15% of screen height
+        width_border = int(clear_button_width * .05) # 5% padding in both directions
+        height_border = int(clear_button_height * .05)
 
-        if (1 <= y <= 65 and 40 <= x <= 140):
-            self.lines = []
+        frame = cv.rectangle(frame, (width_border, height_border), 
+                            (clear_button_width - width_border,clear_button_height - height_border),
+                            (122, 122, 122), -1)
+        cv.putText(frame, "CLEAR ALL", (49,33), cv.FONT_HERSHEY_SIMPLEX, 
+                        .5, (255, 255, 255), 2, cv.LINE_AA)
         
-        button_width = int((width - 150) / len(self.colors) - 20)
-        x_dist = 160
+        # clear output!
+        if (width_border <= x <= clear_button_width - width_border and 
+            height_border <= y <= clear_button_height):
+            self.lines = []
+
+        # we have less space now
+        current_width  = frame_width - clear_button_width
+        button_width = int(current_width / len(self.colors))
+        button_height = clear_button_height
+        width_border = int(button_width * .05)
+        height_border = int(button_height *.05)
+
+        x_dist = clear_button_width
         
         for name_color, color_arr in self.colors.items():
             # start drawing the button
-            frame = cv.rectangle(frame, (x_dist, 1), (x_dist + button_width, 65),
-                    color_arr, -1)
-            # put text into the button
-            cv.putText(frame, name_color, (x_dist + 10, 33),
-                    cv.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2,
-                    cv.LINE_AA)
+            frame = cv.rectangle(frame, (x_dist + width_border, height_border), 
+                                        (x_dist + button_width - width_border, button_height - height_border),
+                                color_arr, -1)
+            
+            cv.putText(frame, name_color, (x_dist + int(button_width * .4), int(button_height*.4)),
+                        cv.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2,
+                        cv.LINE_AA)
             # just changing inputs if we hover over there
-            if (1 <= y <= 65 and x_dist <= x <= x_dist + button_width):
-                # button change!
+            if (height_border <= y <= button_height - height_border and 
+                x_dist + width_border <= x <= x_dist + button_width - width_border):
                 self.color = name_color
                 self.end_line()
             if name_color == self.color:
-                frame = cv.rectangle(frame, (x_dist, 1), (x_dist
-                    + button_width, 65), (0, 255, 255), 5)
-            x_dist += button_width + 20
+                frame = cv.rectangle(frame, 
+                (x_dist + width_border, height_border), 
+                (x_dist + button_width - width_border, button_height - height_border),
+                (255, 255, 255), 5)
+            x_dist += button_width
+
+        mode_string = None
+        color = self.color
+        if 0 < x < frame_width and 0 < y < frame_height:
+            color = self.colors['GREEN']
+            mode_string = "Drawing"
+        else:
+            color = self.colors['RED']
+            mode_string = "Hover"
+
+        cv.putText(frame, mode_string, (width_border, int(button_height * 2)),cv.FONT_HERSHEY_SIMPLEX,
+                    3, color, 3, cv.LINE_AA)
+
         return frame
 
     def push_point(self, point):
@@ -102,7 +139,7 @@ class Canvas():
 
 class Line():
     """
-    Helper class to represent the lines I put on the screen
+    Helper class to represent the lines put on the screen
     """
 
     def __init__(self, color):
