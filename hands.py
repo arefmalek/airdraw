@@ -64,13 +64,15 @@ class HandDetector():
         returns:
             True if dotProduct is above threshhold (drawing mode off), False otherwise
         """
-        index_vector = [landmarks[8][1] - landmarks[6][1], landmarks[8][2] - landmarks[6][2]]
-        middle_vector = [landmarks[12][1] - landmarks[10][1], landmarks[12][2]
-                - landmarks[10][2]]
+        vectorize = lambda u, v: [v[i] - u[i] for i in range(len(v))]
+        index_vector = vectorize(landmarks[6], landmarks[8])
+        middle_vector = vectorize(landmarks[10], landmarks[12])
         val = np.dot(index_vector, middle_vector)
 
         vector_magnitude = lambda vector: sum(dim**2 for dim in vector)**.5
         val /= (vector_magnitude(index_vector) * vector_magnitude(middle_vector))
+        if threshhold == None: # just for debugging purposes
+            return val
         return val < threshhold
 
 def main():
@@ -85,8 +87,8 @@ def main():
 
         landmark_list = detector.detect_landmarks(img.shape)
         if len(landmark_list) != 0:
-            val = detector.detect_finger_mode(landmark_list)
-            cv.putText(img, f"Dot Product: {val}", (50, 50),
+            val = detector.detect_finger_mode(landmark_list, threshhold=None)
+            cv.putText(img, f"Dot Product: {val:.4f}", (50, 50),
                     cv.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2, cv.LINE_AA)
 
         cv.imshow('Camera', img)
