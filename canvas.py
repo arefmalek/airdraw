@@ -17,7 +17,7 @@ class Canvas():
         self.lines = []
 
     # TODO: support multiple colors
-    def draw_color_data(self, frame, point = (0, 0)):
+    def draw_color_data(self, frame, point = (0, 0), gesture):
         """
         Creates the dashboard and processes input from the hand (if in Drawing mode)
 
@@ -80,12 +80,12 @@ class Canvas():
         color = self.color
         if 0 < x < frame_width and 0 < y < frame_height:
             color = self.colors['GREEN']
-            mode_string = "Drawing"
+            mode_string = "Draw"
         else:
             color = self.colors['RED']
             mode_string = "Hover"
 
-        cv.putText(frame, mode_string, (width_border, int(button_height * 2)),cv.FONT_HERSHEY_SIMPLEX,
+        cv.putText(frame, f"Mode: {mode_string}", (width_border, int(button_height * 2)),cv.FONT_HERSHEY_SIMPLEX,
                     3, color, 3, cv.LINE_AA)
 
         return frame
@@ -136,6 +136,7 @@ class Canvas():
                         5
                         )
         return frame
+
 
 class Line():
     """
