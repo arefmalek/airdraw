@@ -14,10 +14,10 @@ class Canvas():
                 "RED": (0,0,255),
                 }
         self.color = "GREEN" # only really used to initialize lines
-        self.lines = set()
+        self.lines = {}
 
     # TODO: support multiple colors
-    def draw_dashboard(self, frame, point = (0, 0), gesture):
+    def draw_dashboard(self, frame, point, gesture):
         """
         Creates the dashboard based on the current status
 
