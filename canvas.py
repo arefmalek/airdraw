@@ -1,5 +1,13 @@
 import cv2 as cv
 
+"""
+
+TODO:
+- convert hashmap implementation just to work
+- write in the 2-D grid with hashmap implementation
+- prototype the erase function
+- merge once I'm happy with it :>
+"""
 class Canvas():
     """ 
     class that deals with drawing onto the screen
@@ -129,6 +137,11 @@ class Canvas():
                         5
                         )
         return frame
+    def erase_mode():
+        #  
+        if #condition: # if the hands align with a point 
+            # delete the line from the hashmap
+
 
 
 class Line():
@@ -144,7 +157,7 @@ class Line():
     def __repr__(self):
         return f"\tcolor({self.color})\n \
                 \tactive({self.active})\n \
-                points({self.points})"
+                points({self.points[0]})"
 def main():
     canvas = Canvas()
     line = Line("BLUE")
