@@ -65,8 +65,9 @@ class HandDetector():
         vectorize = lambda u, v: [v[i] - u[i] for i in range(len(v))]
 
         palm_index_vector = vectorize(landmarks[0], landmarks[5])
-        index_vector = vectorize(landmarks[6], landmarks[8])
-        middle_vector = vectorize(landmarks[10], landmarks[12])
+        index_vector = vectorize(landmarks[5], landmarks[8])
+        middle_vector = vectorize(landmarks[9], landmarks[12])
+        ring_vector = vectorize(landmarks[13], landmarks[16])
 
         vector_magnitude = lambda vector: sum(dim**2 for dim in vector)**.5
         cos_angle = lambda u, v: np.dot(u, v) / (vector_magnitude(u)
@@ -76,14 +77,22 @@ class HandDetector():
         if debug:
             return cos_angle(index_vector, middle_vector)
 
-        # index finger pointing out, middle finger tucked
+        # index finger pointing out, middle finger tucked, ring finger tucked
         if cos_angle(index_vector, middle_vector) < threshhold and \
-                cos_angle(index_vector, palm_index_vector) > threshhold:
+                cos_angle(index_vector, ring_vector) < threshhold:
            return "DRAW"
-        # index and middle finger both sticking out
+        # index finger pointing out, middle finger pointing, ring finger
+        # tucked
         elif cos_angle(index_vector, middle_vector) > threshhold and \
-        cos_angle(palm_index_vector, index_vector) > threshhold:
+        cos_angle(index_vector, ring_vector) < threshhold:
             return "ERASE"
+
+        # index finger pointing out, middle finger pointing, ring finger
+        # pointing
+        elif cos_angle(index_vector, middle_vector) > threshhold and \
+        cos_angle(index_vector, ring_vector) < threshhold:
+            return "HOVER"
+
 
         # otherwise hover
         return "HOVER"

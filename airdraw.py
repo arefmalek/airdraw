@@ -38,22 +38,29 @@ def main(recording = False):
         
         frame = detector.detect_hands(frame)
         landmark_list = detector.detect_landmarks(frame.shape)
-        drawing = False
+        gesture = None 
     
         if len(landmark_list) != 0:
-            drawing = detector.detect_finger_mode(landmark_list)
+            gesture = detector.detect_gesture(landmark_list)
         
-        # add the point of data onto the stack
-        if drawing:
-            dr, dd = landmark_list[8][1:]
+        # if we have a gesture, deal with it
+        if gesture != None:
+            r, c = landmark_list[8][1:] # coordinates of tip of index fing
     
-            frame = canvas.draw_color_data(frame, (dr, dd))
+            frame = canvas.draw_dashboard(frame, gesture, (r, c))
     
             rows, cols, _ = frame.shape
-            if 0 < dr < cols and 0 < dd < rows:
-                canvas.push_point((dr, dd))
+
+            if (0 < r < cols and 0 < c < rows):
+                if gesture == "DRAW":
+                    canvas.push_point((r, c))
+                elif gesture == "ERASE":
+                    canvas.end_line()
+                    # TODO: incorporate erase function
+                elif gesture == "HOVER":
+                    canvas.end_line()
         else:
-            frame = canvas.draw_color_data(frame)
+            frame = canvas.draw_dashboard(frame)
             canvas.end_line()
     
         # draw the stack 

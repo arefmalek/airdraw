@@ -23,16 +23,19 @@ class Canvas():
                 }
         self.color = "GREEN" # only really used to initialize lines
         self.lines = {}
+        self.currLine = None
 
     # TODO: support multiple colors
-    def draw_dashboard(self, frame, point, gesture):
+    def draw_dashboard(self, frame, gesture = "HOVER", point = (-1, -1)):
         """
         Creates the dashboard based on the current status
 
         Arguments:    
             frame: numpy array representing the current image
+            gesture: the alignment of the hand
             point: the x, y coordinates corresponding to the finger if in drawing mode.
-                    defaults to (0, 0) because we may not even have the 
+                    defaults to (-1, -1) because we may not even have the 
+
         """
         frame_height, frame_width, _ = frame.shape
         x, y = point
@@ -52,7 +55,7 @@ class Canvas():
         # clear output!
         if (width_border <= x <= clear_button_width - width_border and 
             height_border <= y <= clear_button_height):
-            self.lines = []
+            self.lines = {}
 
         # we have less space now
         current_width  = frame_width - clear_button_width
@@ -73,7 +76,8 @@ class Canvas():
                         cv.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2,
                         cv.LINE_AA)
             # just changing inputs if we hover over there
-            if (height_border <= y <= button_height - height_border and 
+            if gesture == "DRAW" and \
+                (height_border <= y <= button_height - height_border and \
                 x_dist + width_border <= x <= x_dist + button_width - width_border):
                 self.color = name_color
                 self.end_line()
@@ -84,10 +88,10 @@ class Canvas():
                 (255, 255, 255), 5)
             x_dist += button_width
 
-        cv.putText(frame, f"Mode: {mode_string}", 
+        cv.putText(frame, f"Mode: {gesture}", 
                 (width_border, int(button_height * 2)),
                 cv.FONT_HERSHEY_SIMPLEX,
-                3, self.color, 3, cv.LINE_AA)
+                3, self.colors[self.color], 3, cv.LINE_AA)
 
         return frame
 
@@ -100,20 +104,20 @@ class Canvas():
             index finger (assuming we are in drawing mode)
         
         """
-        if len(self.lines) == 0 or self.lines[-1].active == False:
+        if len(self.lines) == 0 or self.lines[self.currLine].active == False:
             # we need to initialize a line
-            line = Line(self.color) # start a line with a new color
-            self.lines.append(line)
-
-        # lines are like this
-        self.lines[-1].points.append(point)
+            line = Line(self.color, point) # start a line with a new color
+            self.currLine = str(line)
+            self.lines[self.currLine] = line
+        else:
+            self.lines[self.currLine].points.append(point)
         
     def end_line(self):
         """
             deactivates current line 
         """
         if len(self.lines) > 0:
-            self.lines[-1].active = False
+            self.lines[self.currLine].active = False
 
     def draw_lines(self, frame):
         """
@@ -123,7 +127,7 @@ class Canvas():
         #               "points": [(1, 2), (5, 9), ...]}, 
         #               {"color": "RED",
         #               "points": [(6, 0), (5, 8), ...]}, 
-        for line in self.lines:
+        for line in self.lines.values():
             for i, point in enumerate(line.points):
                 if i == 0:
                     continue
@@ -138,9 +142,13 @@ class Canvas():
                         )
         return frame
     def erase_mode():
+        condition = False
         #  
-        if #condition: # if the hands align with a point 
+        if condition: # if the hands align with a point 
             # delete the line from the hashmap
+            print("yes")
+
+        return None
 
 
 
@@ -149,9 +157,9 @@ class Line():
     Helper class to represent the lines put on the screen
     """
 
-    def __init__(self, color):
+    def __init__(self, color, origin):
         self.color = color
-        self.points = []
+        self.points = [origin]
         self.active = True
 
     def __repr__(self):
