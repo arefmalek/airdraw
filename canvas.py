@@ -1,9 +1,10 @@
 import cv2 as cv
 
 """
+DONE:
+- convert hashmap implementation just to work
 
 TODO:
-- convert hashmap implementation just to work
 - write in the 2-D grid with hashmap implementation
 - prototype the erase function
 - merge once I'm happy with it :>
@@ -15,7 +16,7 @@ class Canvas():
     draw lines onto the screen
     """
 
-    def __init__(self):
+    def __init__(self, width, height):
         self.colors = {
                 "BLUE": (255,0,0),
                 "GREEN": (0,255,0),
@@ -24,6 +25,10 @@ class Canvas():
         self.color = "GREEN" # only really used to initialize lines
         self.lines = {}
         self.currLine = None
+        # has to be python grid b/c I'm storing strings
+        # no numpy :( gotta use cpp soon
+        self.grid = [[None] * width for row in range(height)]
+        print(len(self.grid), len(self.grid[0]))
 
     # TODO: support multiple colors
     def draw_dashboard(self, frame, gesture = "HOVER", point = (-1, -1)):
@@ -104,19 +109,25 @@ class Canvas():
             index finger (assuming we are in drawing mode)
         
         """
-        if len(self.lines) == 0 or self.lines[self.currLine].active == False:
+        if len(self.lines) == 0 or self.currLine == None or self.lines[self.currLine].active == False:
             # we need to initialize a line
             line = Line(self.color, point) # start a line with a new color
             self.currLine = str(line)
             self.lines[self.currLine] = line
         else:
             self.lines[self.currLine].points.append(point)
+
+        # gotta update our grid
+        dleft, dtop = point 
+        # dleft is distance from left border, 
+        # dtop distance from top border
+        self.grid[dtop][dleft] = self.currLine
         
     def end_line(self):
         """
             deactivates current line 
         """
-        if len(self.lines) > 0:
+        if self.currLine != None and len(self.lines) > 0:
             self.lines[self.currLine].active = False
 
     def draw_lines(self, frame):
@@ -141,16 +152,26 @@ class Canvas():
                         5
                         )
         return frame
-    def erase_mode():
-        condition = False
-        #  
-        if condition: # if the hands align with a point 
-            # delete the line from the hashmap
-            print("yes")
 
-        return None
+    # start of erase mode code
+    def erase_mode(self, position):
+        """
+        Interprets the position of the pointer, 
+        deletes lines if they overlap with the pointer
 
+        Arguments:
+            position: (x, y) coordinates of the position
+        """
+        dleft, dtop = position
 
+        print(position, self.grid[dtop][dleft])
+        if self.grid[dtop][dleft] != None:
+            key = self.grid[dtop][dleft]
+            line = self.lines.pop(key)
+            for point in line.points:
+                x, y = point
+                self.grid[y][x] = None
+        self.currLine = None
 
 class Line():
     """

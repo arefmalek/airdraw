@@ -20,10 +20,15 @@ def record(cap):
 
 def main(recording = False):
     # Loading the default webcam of PC.
-    canvas = Canvas()
-    detector = HandDetector()
-    
     cap = cv.VideoCapture(0)
+    
+    # width and height for 2-D grid
+    width = int(cap.get(cv.CAP_PROP_FRAME_WIDTH) + 0.5)
+    height = int(cap.get(cv.CAP_PROP_FRAME_HEIGHT) + 0.5)
+    print(width, height)
+ 
+    canvas = Canvas(width, height)
+    detector = HandDetector()
     
     out = None
     if recording:
@@ -56,7 +61,8 @@ def main(recording = False):
                     canvas.push_point((r, c))
                 elif gesture == "ERASE":
                     canvas.end_line()
-                    # TODO: incorporate erase function
+                    canvas.erase_mode((r, c))
+                    # TODO: incorporate erapse function
                 elif gesture == "HOVER":
                     canvas.end_line()
         else:
