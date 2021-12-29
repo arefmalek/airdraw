@@ -1,13 +1,9 @@
 import cv2 as cv
 
 """
-DONE:
-- convert hashmap implementation just to work
-
 TODO:
-- write in the 2-D grid with hashmap implementation
-- prototype the erase function
-- merge once I'm happy with it :>
+- Requiring the finger to intersect the same pixel position as the line kinda
+  sucks, I'm thinking we use a quadtree to give us a ~5 pixel radius
 """
 class Canvas():
     """ 
