@@ -161,14 +161,17 @@ class Canvas():
         """
         dleft, dtop = position
 
-        print(position, self.grid[dtop][dleft])
-        if self.grid[dtop][dleft] != None:
-            key = self.grid[dtop][dleft]
-            line = self.lines.pop(key)
-            for point in line.points:
-                x, y = point
-                self.grid[y][x] = None
         self.currLine = None
+        for dr in range(max(0, dleft - radius), 
+                min(dleft + radius, len(self.grid[0]))):
+            for dc in range(max(0, dtop - radius), 
+                    min(dtop + radius, len(self.grid))):
+                if self.grid[dc][dr] != None:
+                    key = self.grid[dc][dr]
+                    line = self.lines.pop(key)
+                    for point in line.points:
+                        x, y = point
+                        self.grid[y][x] = None
 
 class Line():
     """

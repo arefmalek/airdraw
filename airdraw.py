@@ -68,7 +68,7 @@ def main(recording = False):
 
                     distance = euclidean_dist(idx_finger, mid_fing)
                     canvas.end_line()
-                    canvas.erase_mode((r, c), int(distance * 0.75))
+                    canvas.erase_mode((r, c), int(distance * 0.25))
                     # TODO: incorporate erapse function
                 elif gesture == "HOVER":
                     canvas.end_line()
