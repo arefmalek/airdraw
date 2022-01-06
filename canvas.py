@@ -150,13 +150,14 @@ class Canvas():
         return frame
 
     # start of erase mode code
-    def erase_mode(self, position):
+    def erase_mode(self, position, radius):
         """
         Interprets the position of the pointer, 
         deletes lines if they overlap with the pointer
 
         Arguments:
             position: (x, y) coordinates of the position
+            radius: the radius (in pixels) of our 
         """
         dleft, dtop = position
 

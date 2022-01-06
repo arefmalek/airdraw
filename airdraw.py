@@ -48,9 +48,11 @@ def main(recording = False):
         if len(landmark_list) != 0:
             gesture = detector.detect_gesture(landmark_list)
         
+
         # if we have a gesture, deal with it
         if gesture != None:
-            r, c = landmark_list[8][1:] # coordinates of tip of index fing
+            idx_finger = landmark_list[8] # coordinates of tip of index fing
+            _, r, c = idx_finger
     
             frame = canvas.draw_dashboard(frame, gesture, (r, c))
     
@@ -60,8 +62,13 @@ def main(recording = False):
                 if gesture == "DRAW":
                     canvas.push_point((r, c))
                 elif gesture == "ERASE":
+                    euclidean_dist= lambda a, b: sum( [(a[i]- b[i])**2 for i in
+                        range(len(a))])**.5
+                    mid_fing = landmark_list[12]
+
+                    distance = euclidean_dist(idx_finger, mid_fing)
                     canvas.end_line()
-                    canvas.erase_mode((r, c))
+                    canvas.erase_mode((r, c), int(distance * 0.75))
                     # TODO: incorporate erapse function
                 elif gesture == "HOVER":
                     canvas.end_line()
