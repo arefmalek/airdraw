@@ -24,7 +24,6 @@ class Canvas():
         # has to be python grid b/c I'm storing strings
         # no numpy :( gotta use cpp soon
         self.grid = [[None] * width for row in range(height)]
-        print(len(self.grid), len(self.grid[0]))
 
     # TODO: support multiple colors
     def draw_dashboard(self, frame, gesture = "HOVER", point = (-1, -1)):
@@ -50,13 +49,17 @@ class Canvas():
         frame = cv.rectangle(frame, (width_border, height_border), 
                             (clear_button_width - width_border,clear_button_height - height_border),
                             (122, 122, 122), -1)
-        cv.putText(frame, "CLEAR ALL", (49,33), cv.FONT_HERSHEY_SIMPLEX, 
+        cv.putText(frame, "CLEAR ALL", 
+                (int(clear_button_width * .3),int(clear_button_height * .5)), 
+                cv.FONT_HERSHEY_SIMPLEX, 
                         .5, (255, 255, 255), 2, cv.LINE_AA)
         
         # clear output!
         if (width_border <= x <= clear_button_width - width_border and 
             height_border <= y <= clear_button_height):
             self.lines = {}
+            self.grid = [[None] * len(self.grid[0]) for row in
+                    range(len(self.grid))]
 
         # we have less space now
         current_width  = frame_width - clear_button_width
@@ -73,9 +76,9 @@ class Canvas():
                                         (x_dist + button_width - width_border, button_height - height_border),
                                 color_arr, -1)
             
-            cv.putText(frame, name_color, (x_dist + int(button_width * .4), int(button_height*.4)),
-                        cv.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2,
-                        cv.LINE_AA)
+           # cv.putText(frame, name_color, (x_dist + int(button_width * .4), int(button_height*.4)),
+           #             cv.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2,
+           #             cv.LINE_AA)
             # just changing inputs if we hover over there
             if gesture == "DRAW" and \
                 (height_border <= y <= button_height - height_border and \
@@ -92,7 +95,7 @@ class Canvas():
         cv.putText(frame, f"Mode: {gesture}", 
                 (width_border, int(button_height * 2)),
                 cv.FONT_HERSHEY_SIMPLEX,
-                3, self.colors[self.color], 3, cv.LINE_AA)
+                2, self.colors[self.color], 3, cv.LINE_AA)
 
         return frame
 

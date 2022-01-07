@@ -25,7 +25,6 @@ def main(recording = False):
     # width and height for 2-D grid
     width = int(cap.get(cv.CAP_PROP_FRAME_WIDTH) + 0.5)
     height = int(cap.get(cv.CAP_PROP_FRAME_HEIGHT) + 0.5)
-    print(width, height)
  
     canvas = Canvas(width, height)
     detector = HandDetector()
@@ -93,4 +92,4 @@ def main(recording = False):
     cv.destroyAllWindows()
 
 if __name__ == '__main__':
-    main()
+    main(recording = True)
