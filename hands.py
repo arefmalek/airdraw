@@ -50,30 +50,52 @@ class HandDetector():
 
         return landmarks
     
-    def detect_finger_mode(self, landmarks, threshhold=0.9):
+    def detect_gesture(self, landmarks, threshhold=0.90, debug=False):
         """
-        This function takes in the image with detected hand signs and tells us
-        if we are in drawing mode or not
-
-        we do this by getting the dot product of 2 vectors (of index and middle
-        fingers)
+        This function determines which "mode" we are in, signified by the
+        hand-signs someone indicates when we are drawing
 
         Arguments:
             landmarks: finger points
-            threshhold: value of 
+            threshhold: value we need in order to change 'modes'
+            debug: "haha...what do you think?" - Stephan A smith
         returns:
-            True if dotProduct is above threshhold (drawing mode off), False otherwise
+            String that matches the gesture we have
         """
         vectorize = lambda u, v: [v[i] - u[i] for i in range(len(v))]
-        index_vector = vectorize(landmarks[6], landmarks[8])
-        middle_vector = vectorize(landmarks[10], landmarks[12])
-        val = np.dot(index_vector, middle_vector)
+
+        palm_index_vector = vectorize(landmarks[0], landmarks[5])
+        index_vector = vectorize(landmarks[5], landmarks[8])
+        middle_vector = vectorize(landmarks[9], landmarks[12])
+        ring_vector = vectorize(landmarks[13], landmarks[16])
 
         vector_magnitude = lambda vector: sum(dim**2 for dim in vector)**.5
-        val /= (vector_magnitude(index_vector) * vector_magnitude(middle_vector))
-        if threshhold == None: # just for debugging purposes
-            return val
-        return val < threshhold
+        cos_angle = lambda u, v: np.dot(u, v) / (vector_magnitude(u)
+                * vector_magnitude(v))
+
+        # really just to debug
+        if debug:
+            return cos_angle(index_vector, middle_vector)
+
+        # index finger pointing out, middle finger tucked, ring finger tucked
+        if cos_angle(index_vector, middle_vector) < threshhold and \
+                cos_angle(index_vector, ring_vector) < threshhold:
+           return "DRAW"
+        # index finger pointing out, middle finger pointing, ring finger
+        # tucked
+        elif cos_angle(index_vector, middle_vector) > threshhold and \
+        cos_angle(index_vector, ring_vector) < threshhold:
+            return "ERASE"
+
+        # index finger pointing out, middle finger pointing, ring finger
+        # pointing
+        elif cos_angle(index_vector, middle_vector) > threshhold and \
+        cos_angle(index_vector, ring_vector) < threshhold:
+            return "HOVER"
+
+
+        # otherwise hover
+        return "HOVER"
 
 def main():
 
@@ -87,8 +109,9 @@ def main():
 
         landmark_list = detector.detect_landmarks(img.shape)
         if len(landmark_list) != 0:
-            val = detector.detect_finger_mode(landmark_list, threshhold=None)
-            cv.putText(img, f"Dot Product: {val:.4f}", (50, 50),
+            val = detector.detect_gesture(landmark_list, threshhold=0.9,
+                    )
+            cv.putText(img, f"Mode: {val}", (50, 50),
                     cv.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2, cv.LINE_AA)
 
         cv.imshow('Camera', img)

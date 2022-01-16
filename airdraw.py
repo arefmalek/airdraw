@@ -20,10 +20,14 @@ def record(cap):
 
 def main(recording = False):
     # Loading the default webcam of PC.
-    canvas = Canvas()
-    detector = HandDetector()
-    
     cap = cv.VideoCapture(0)
+    
+    # width and height for 2-D grid
+    width = int(cap.get(cv.CAP_PROP_FRAME_WIDTH) + 0.5)
+    height = int(cap.get(cv.CAP_PROP_FRAME_HEIGHT) + 0.5)
+ 
+    canvas = Canvas(width, height)
+    detector = HandDetector()
     
     out = None
     if recording:
@@ -38,22 +42,37 @@ def main(recording = False):
         
         frame = detector.detect_hands(frame)
         landmark_list = detector.detect_landmarks(frame.shape)
-        drawing = False
+        gesture = None 
     
         if len(landmark_list) != 0:
-            drawing = detector.detect_finger_mode(landmark_list)
+            gesture = detector.detect_gesture(landmark_list)
         
-        # add the point of data onto the stack
-        if drawing:
-            dr, dd = landmark_list[8][1:]
+
+        # if we have a gesture, deal with it
+        if gesture != None:
+            idx_finger = landmark_list[8] # coordinates of tip of index fing
+            _, r, c = idx_finger
     
-            frame = canvas.draw_color_data(frame, (dr, dd))
+            frame = canvas.draw_dashboard(frame, gesture, (r, c))
     
             rows, cols, _ = frame.shape
-            if 0 < dr < cols and 0 < dd < rows:
-                canvas.push_point((dr, dd))
+
+            if (0 < r < cols and 0 < c < rows):
+                if gesture == "DRAW":
+                    canvas.push_point((r, c))
+                elif gesture == "ERASE":
+                    euclidean_dist= lambda a, b: sum( [(a[i]- b[i])**2 for i in
+                        range(len(a))])**.5
+                    mid_fing = landmark_list[12]
+
+                    distance = euclidean_dist(idx_finger, mid_fing)
+                    canvas.end_line()
+                    canvas.erase_mode((r, c), int(distance * 0.25))
+                    # TODO: incorporate erapse function
+                elif gesture == "HOVER":
+                    canvas.end_line()
         else:
-            frame = canvas.draw_color_data(frame)
+            frame = canvas.draw_dashboard(frame)
             canvas.end_line()
     
         # draw the stack 
@@ -73,4 +92,4 @@ def main(recording = False):
     cv.destroyAllWindows()
 
 if __name__ == '__main__':
-    main()
+    main(recording = True)
