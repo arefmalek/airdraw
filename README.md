@@ -1,6 +1,7 @@
 # Air Draw
 ![Demo of my trying out the hands](./demo.gif)
 
+
 ## Setup
 <b>NOTE</b> This setup is just for what I use (Ubuntu 20.04). While I am willing to bet this will work for windows and unix, just be safe!
 ### Virtual environment
