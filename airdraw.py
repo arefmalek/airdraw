@@ -4,21 +4,7 @@ from hands import HandDetector
 from canvas import Canvas
 
 
-def record(cap):
-    """
-    helper function to set up to create a video writer to record demos with
-
-    Arguments:
-        cap: the videocapture object we get data from
-    """
-    width = int(cap.get(cv.CAP_PROP_FRAME_WIDTH) + 0.5)
-    height = int(cap.get(cv.CAP_PROP_FRAME_HEIGHT) + 0.5)
-    
-    fourcc = cv.VideoWriter_fourcc(*'MP4V')
-    out = cv.VideoWriter('./output.mp4', fourcc, 20.0, (width,  height))
-    return out
-
-def main(recording = False):
+def main():
     # Loading the default webcam of PC.
     cap = cv.VideoCapture(0)
     
@@ -29,9 +15,6 @@ def main(recording = False):
     canvas = Canvas(width, height)
     detector = HandDetector()
     
-    out = None
-    if recording:
-        out = record(cap)
     
     # Keep looping
     while True:
@@ -78,18 +61,14 @@ def main(recording = False):
         # draw the stack 
         frame = canvas.draw_lines(frame)
         
-        if recording:
-            out.write(frame)
         cv.imshow("buttons", frame)
     
         stroke = cv.waitKey(1) & 0xff  
         if stroke == ord('q') or stroke == 27: # press 'q' or 'esc' to quit
             break
     
-    if recording:
-        out.release()
     cap.release()
     cv.destroyAllWindows()
 
 if __name__ == '__main__':
-    main(recording = True)
+    main()

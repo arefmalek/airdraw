@@ -85,13 +85,13 @@ class HandDetector():
         # tucked
         elif cos_angle(index_vector, middle_vector) > threshhold and \
         cos_angle(index_vector, ring_vector) < threshhold:
-            return "ERASE"
+            return "HOVER"
 
         # index finger pointing out, middle finger pointing, ring finger
         # pointing
         elif cos_angle(index_vector, middle_vector) > threshhold and \
-        cos_angle(index_vector, ring_vector) < threshhold:
-            return "HOVER"
+        cos_angle(index_vector, ring_vector) > threshhold:
+            return "ERASE"
 
 
         # otherwise hover
