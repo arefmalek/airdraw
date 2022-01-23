@@ -2,8 +2,7 @@ import cv2 as cv
 
 """
 TODO:
-- Requiring the finger to intersect the same pixel position as the line kinda
-  sucks, I'm thinking we use a quadtree to give us a ~5 pixel radius
+
 """
 class Canvas():
     """ 

@@ -44,13 +44,16 @@ def main():
                 if gesture == "DRAW":
                     canvas.push_point((r, c))
                 elif gesture == "ERASE":
+                    # stop current line
+                    canvas.end_line()
+
                     euclidean_dist= lambda a, b: sum( [(a[i]- b[i])**2 for i in
                         range(len(a))])**.5
                     mid_fing = landmark_list[12]
-
                     distance = euclidean_dist(idx_finger, mid_fing)
-                    canvas.end_line()
-                    canvas.erase_mode((r, c), int(distance * 0.25))
+                    
+                    _, mid_r, mid_c = mid_fing
+                    canvas.erase_mode((mid_r, mid_c), int(distance * 0.25))
                     # TODO: incorporate erapse function
                 elif gesture == "HOVER":
                     canvas.end_line()
