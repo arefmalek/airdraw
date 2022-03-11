@@ -13,8 +13,20 @@
 ### Run program
 `python3 airdraw.py`
 
+## Available Gestures
+
+### Drawing
+![Drawing directly on screen](./demo_gifs/drawing.gif)
+
+### Hovering
+![Hovering over drawings on screen](./demo_gifs/hovering.gif)
+
+### Erasing
+![Erasing earlier drawings on screen](./demo_gifs/eraser.gif)
+
+
 ## Why?
-I've seen tons of tries of this sort of thing with HSV masks, and while it's more true to image processing that openCV caters for, I was sort of against letting our own styluses [go to waste](https://money.cnn.com/2015/09/10/technology/apple-pencil-steve-jobs-stylus/index.html).
+I've seen tons of attempts of this sort of thing with HSV masks, and while it's more true to image processing that openCV caters for, I was sort of against letting our own styluses [go to waste](https://money.cnn.com/2015/09/10/technology/apple-pencil-steve-jobs-stylus/index.html).
 Once I found out about [mediapipe](https://google.github.io/mediapipe/), I decided I would give this thing a shot! What you see is my attempt at materializing the idea, there is a more detailed [writeup](https://arefmalek.github.io/blog/Airdraw/) on my blog. 
 
 ## How?
