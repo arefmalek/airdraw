@@ -71,9 +71,11 @@ class Canvas():
         
         for name_color, color_arr in self.colors.items():
             # start drawing the button
-            frame = cv.rectangle(frame, (x_dist + width_border, height_border), 
-                                        (x_dist + button_width - width_border, button_height - height_border),
-                                color_arr, -1)
+            frame = cv.rectangle(frame, 
+                                (x_dist + width_border, height_border), 
+                                (x_dist + button_width - width_border, button_height - height_border),
+                                color_arr, 
+                                -1)
             
            # cv.putText(frame, name_color, (x_dist + int(button_width * .4), int(button_height*.4)),
            #             cv.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2,
@@ -86,9 +88,10 @@ class Canvas():
                 self.end_line()
             if name_color == self.color:
                 frame = cv.rectangle(frame, 
-                (x_dist + width_border, height_border), 
-                (x_dist + button_width - width_border, button_height - height_border),
-                (255, 255, 255), 5)
+                                    (x_dist + width_border, height_border), 
+                                    (x_dist + button_width - width_border, button_height - height_border),
+                                    (255, 255, 255),
+                                    5)
             x_dist += button_width
 
         cv.putText(frame, f"Mode: {gesture}", 
@@ -130,7 +133,14 @@ class Canvas():
 
     def draw_lines(self, frame):
         """
-        Draws all of the lines we have generated so far
+        Draws all of the lines we have generated so far by looping through line objects
+
+        Args:
+        - frame: The image straight from camera
+
+        Returns:
+        Image with all the different lines drawn on top of it
+        
         """
         # self.lines = [{"color": "BLUE",
         #               "points": [(1, 2), (5, 9), ...]}, 
@@ -166,8 +176,9 @@ class Canvas():
         self.currLine = None
         for dr in range(max(0, dleft - radius), 
                 min(dleft + radius, len(self.grid[0]))):
-            for dc in range(max(0, dtop - radius), 
-                    min(dtop + radius, len(self.grid))):
+            for dc in range(
+                            max(0, dtop - radius), 
+                            min(dtop + radius, len(self.grid))):
                 if self.grid[dc][dr] != None:
                     key = self.grid[dc][dr]
                     line = self.lines.pop(key)

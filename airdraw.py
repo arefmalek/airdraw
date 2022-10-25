@@ -12,6 +12,7 @@ def main():
     width = int(cap.get(cv.CAP_PROP_FRAME_WIDTH) + 0.5)
     height = int(cap.get(cv.CAP_PROP_FRAME_HEIGHT) + 0.5)
  
+    # initialize the canvas element and hand-detector program
     canvas = Canvas(width, height)
     detector = HandDetector()
     
@@ -47,14 +48,22 @@ def main():
                     # stop current line
                     canvas.end_line()
 
+                    # We find the distance 
+                    mid_fing = landmark_list[12]
                     euclidean_dist= lambda a, b: sum( [(a[i]- b[i])**2 for i in
                         range(len(a))])**.5
-                    mid_fing = landmark_list[12]
                     distance = euclidean_dist(idx_finger, mid_fing)
-                    
                     _, mid_r, mid_c = mid_fing
+
+                    # put circle on the map, and add some opacity
+                    img = frame.copy()
+                    cv.circle(img, (mid_r, mid_c), int(distance*.5), (0,255,255), -1)
+                    alpha = 0.4
+                    frame = cv.addWeighted(frame, alpha, img, 1-alpha, 0)
+
+
                     canvas.erase_mode((mid_r, mid_c), int(distance * 0.25))
-                    # TODO: incorporate erapse function
+
                 elif gesture == "HOVER":
                     canvas.end_line()
         else:
@@ -64,7 +73,7 @@ def main():
         # draw the stack 
         frame = canvas.draw_lines(frame)
         
-        cv.imshow("buttons", frame)
+        cv.imshow("Airdraw", frame)
     
         stroke = cv.waitKey(1) & 0xff  
         if stroke == ord('q') or stroke == 27: # press 'q' or 'esc' to quit

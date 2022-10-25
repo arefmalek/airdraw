@@ -34,19 +34,21 @@ class HandDetector():
 
     def detect_landmarks(self, shape: tuple):
         """
-        Detecting hands from given image
+        Noting all the points of one's hand in the image.
+
         args:
-            - img: image to grab hands from
+            - shape: the size of the input image. We need this as the "landmark" function
+                     from mediapipe only gives decimal value
         returns:
-            - list of landmarks on the hand
+            - list of landmarks on the hand in order of size, and position
         """
         landmarks = []
         if self.results.multi_hand_landmarks:
             my_hand = self.results.multi_hand_landmarks[0] # should only be one
-            for id, landmark in enumerate(my_hand.landmark):
+            for idx, landmark in enumerate(my_hand.landmark):
                 height, width, _ = shape
                 x, y = int(landmark.x * width), int(landmark.y * height)
-                landmarks.append([id, x, y])
+                landmarks.append([idx, x, y])
 
         return landmarks
     
