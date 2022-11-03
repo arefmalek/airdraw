@@ -1,7 +1,44 @@
+import functools
+
 import cv2 as cv
 
 from canvas import Canvas
 from hands import HandDetector
+
+
+def getShapeData():
+    shapeDict = list(map(chr, range(97, 123)))
+    return shapeDict
+
+
+def getShapeContours(alphabet):
+    gray2 = cv.cvtColor(alphabet, cv.COLOR_RGB2GRAY)
+    ret2, thresh2 = cv.threshold(gray2, 127, 255, cv.THRESH_BINARY)
+    contours, hierarchy = cv.findContours(thresh2, cv.RETR_TREE, cv.CHAIN_APPROX_NONE)
+    cv.drawContours(alphabet, contours, -1, (0, 250, 0), 15)
+    cv.imshow("alphabet", alphabet)
+    return contours
+
+
+def apply_color_convertion(frame, color):
+    return cv.cvtColor(frame, color)
+
+
+def get_contours(frame, mode, method):
+    contours, hierarchy = cv.findContours(frame, mode, method)
+    return contours
+
+
+def most_repeated(lst):
+    return max(set(lst), key=lst.count)
+
+
+# def draw_text(color_green, colors, shapeDict, shapeNumber, f, w, x, y):
+#     text = getShapeData(shapeDict.get(shapeNumber))
+#     for i, line in enumerate(text.split('\n')):
+#         y1 = y + i * 50
+#         cv.putText(colors, line, (x + w + 10, y1), cv.FONT_HERSHEY_SIMPLEX, 0.9, color_green, 2)
+#     cv.drawContours(colors, f, -1, color_green, 20)
 
 
 def main():
@@ -16,10 +53,14 @@ def main():
     canvas = Canvas(width, height)
     detector = HandDetector()
 
-    # Keep looping
+    alphabet = cv.imread('./images/alphabet.jpg')
+    shapeContours = getShapeContours(alphabet)
+
     while True:
         # Reading the frame from the camera
         ret, frame = cap.read()
+        detectFromFrame = frame.copy()
+
         frame = cv.flip(frame, 1)
 
         frame = detector.detect_hands(frame)
@@ -45,7 +86,7 @@ def main():
                     # stop current line
                     canvas.end_line()
 
-                    # We find the distance 
+                    # We find the distance
                     mid_fing = landmark_list[12]
                     euclidean_dist = lambda a, b: sum([(a[i] - b[i]) ** 2 for i in
                                                        range(len(a))]) ** .5
@@ -66,8 +107,30 @@ def main():
             frame = canvas.draw_dashboard(frame)
             canvas.end_line()
 
-        # draw the stack 
+        # draw the stack
         frame = canvas.draw_lines(frame)
+
+        # ADD MATCH SHAPES ########################################
+
+        gray_frame = apply_color_convertion(frame=detectFromFrame, color=cv.COLOR_RGB2GRAY)
+        ret1, thresh1 = cv.threshold(gray_frame, 127, 255, cv.THRESH_BINARY_INV)
+        contours = get_contours(frame=thresh1, mode=cv.RETR_TREE, method=cv.CHAIN_APPROX_NONE)
+        filtered = []
+
+        for c in contours:
+            if 30000 < cv.contourArea(c):
+                filtered.append(c)
+
+        if len(filtered) > 0:
+            for detected in filtered:
+
+                for letter in shapeContours:
+
+                    if cv.matchShapes(letter, detected, cv.CONTOURS_MATCH_I2, 0) < 0.4:
+                        cv.drawContours(alphabet, letter, -1, (0, 0, 255), 2)
+                        cv.imshow("alphabet", alphabet)
+
+        ###########################################################
 
         cv.imshow("Airdraw", frame)
 
