@@ -15,7 +15,7 @@ def getShapeContours(alphabet):
     gray2 = cv.cvtColor(alphabet, cv.COLOR_RGB2GRAY)
     ret2, thresh2 = cv.threshold(gray2, 127, 255, cv.THRESH_BINARY)
     contours, hierarchy = cv.findContours(thresh2, cv.RETR_TREE, cv.CHAIN_APPROX_NONE)
-    cv.drawContours(alphabet, contours, -1, (0, 250, 0), 15)
+    cv.drawContours(alphabet, contours, -1, (0, 250, 0), 10)
     cv.imshow("alphabet", alphabet)
     return contours
 
@@ -53,13 +53,14 @@ def main():
     canvas = Canvas(width, height)
     detector = HandDetector()
 
-    alphabet = cv.imread('./images/alphabet.jpg')
-    shapeContours = getShapeContours(alphabet)
+    alphabetOriginal = cv.imread('./images/alphabet.jpg')
+    shapeContours = getShapeContours(alphabetOriginal)
 
     while True:
         # Reading the frame from the camera
         ret, frame = cap.read()
         detectFromFrame = cv.imread('./images/background.png')
+        alphabet = alphabetOriginal.copy()
 
         frame = cv.flip(frame, 1)
 
@@ -129,7 +130,7 @@ def main():
 
                 for letter in shapeContours:
 
-                    if cv.matchShapes(letter, detected, cv.CONTOURS_MATCH_I2, 0) < 0.4:
+                    if cv.matchShapes(letter, detected, cv.CONTOURS_MATCH_I2, 0) < 0.1:
                         cv.drawContours(alphabet, letter, -1, (0, 0, 255), 2)
                         cv.imshow("alphabet", alphabet)
 

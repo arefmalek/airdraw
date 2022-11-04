@@ -159,7 +159,7 @@ class Canvas:
                     (prev_dr, prev_dd),
                     (dr, dd),
                     self.colors[line.color],
-                    5
+                    20
                 )
         return frame
 
