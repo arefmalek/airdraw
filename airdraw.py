@@ -59,7 +59,7 @@ def main():
     while True:
         # Reading the frame from the camera
         ret, frame = cap.read()
-        detectFromFrame = frame.copy()
+        detectFromFrame = cv.imread('./images/background.png')
 
         frame = cv.flip(frame, 1)
 
@@ -109,17 +109,20 @@ def main():
 
         # draw the stack
         frame = canvas.draw_lines(frame)
+        detectFromFrame = canvas.draw_lines(detectFromFrame)
 
         # ADD MATCH SHAPES ########################################
 
         gray_frame = apply_color_convertion(frame=detectFromFrame, color=cv.COLOR_RGB2GRAY)
-        ret1, thresh1 = cv.threshold(gray_frame, 127, 255, cv.THRESH_BINARY_INV)
+        ret1, thresh1 = cv.threshold(gray_frame, 200, 255, cv.THRESH_BINARY_INV)
         contours = get_contours(frame=thresh1, mode=cv.RETR_TREE, method=cv.CHAIN_APPROX_NONE)
+        cv.drawContours(detectFromFrame, contours, -1, (0, 0, 255), 2)
+        cv.imshow('detected', detectFromFrame)
         filtered = []
 
         for c in contours:
-            if 30000 < cv.contourArea(c):
-                filtered.append(c)
+            # if 30000 < cv.contourArea(c):
+            filtered.append(c)
 
         if len(filtered) > 0:
             for detected in filtered:
