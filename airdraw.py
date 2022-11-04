@@ -1,9 +1,13 @@
 import functools
+import math
 
 import cv2 as cv
+import numpy as np
 
 from canvas import Canvas
 from hands import HandDetector
+from machine.utils.label_converters import int_to_label
+from machine.utils.training_model import train_model
 
 
 def getShapeData():
@@ -33,12 +37,27 @@ def most_repeated(lst):
     return max(set(lst), key=lst.count)
 
 
-# def draw_text(color_green, colors, shapeDict, shapeNumber, f, w, x, y):
-#     text = getShapeData(shapeDict.get(shapeNumber))
-#     for i, line in enumerate(text.split('\n')):
-#         y1 = y + i * 50
-#         cv.putText(colors, line, (x + w + 10, y1), cv.FONT_HERSHEY_SIMPLEX, 0.9, color_green, 2)
-#     cv.drawContours(colors, f, -1, color_green, 20)
+def machineDetection(detectFromFrame, lastMatches, model):
+    gray_frame = apply_color_convertion(frame=detectFromFrame, color=cv.COLOR_RGB2GRAY)
+    ret1, thresh1 = cv.threshold(gray_frame, 200, 255, cv.THRESH_BINARY_INV)
+    contours = get_contours(frame=thresh1, mode=cv.RETR_EXTERNAL, method=cv.CHAIN_APPROX_NONE)
+    cv.drawContours(detectFromFrame, contours, -1, (0, 0, 255), 2)
+    cv.imshow('detected', detectFromFrame)
+    filtered = contours
+    if len(filtered) > 0:
+        for detected in filtered:
+            moments = cv.moments(detected)
+            huMoments = cv.HuMoments(moments)
+            for i in range(0, 7):
+                a = 1
+                if abs(huMoments[i]) > 0.0001:
+                    a = huMoments[i]
+                huMoments[i] = -1 * math.copysign(1.0, huMoments[i]) * math.log10(abs(a))
+            sample = np.array(huMoments, dtype=np.float32)  # numpy
+            testResponse = model.predict(sample)[1]
+            lastMatches.append(testResponse[0][0])
+            matchedNumber = most_repeated(lastMatches)
+            print(int_to_label(int(matchedNumber)))
 
 
 def main():
@@ -53,14 +72,13 @@ def main():
     canvas = Canvas(width, height)
     detector = HandDetector()
 
-    alphabetOriginal = cv.imread('./images/alphabet.jpg')
-    shapeContours = getShapeContours(alphabetOriginal)
+    model = train_model()
+    lastMatches = []
 
     while True:
         # Reading the frame from the camera
         ret, frame = cap.read()
         detectFromFrame = cv.imread('./images/background.png')
-        alphabet = alphabetOriginal.copy()
 
         frame = cv.flip(frame, 1)
 
@@ -112,31 +130,15 @@ def main():
         frame = canvas.draw_lines(frame)
         detectFromFrame = canvas.draw_lines(detectFromFrame)
 
-        # ADD MATCH SHAPES ########################################
+        # ADD Machine ########################################
 
-        gray_frame = apply_color_convertion(frame=detectFromFrame, color=cv.COLOR_RGB2GRAY)
-        ret1, thresh1 = cv.threshold(gray_frame, 200, 255, cv.THRESH_BINARY_INV)
-        contours = get_contours(frame=thresh1, mode=cv.RETR_TREE, method=cv.CHAIN_APPROX_NONE)
-        cv.drawContours(detectFromFrame, contours, -1, (0, 0, 255), 2)
-        cv.imshow('detected', detectFromFrame)
-        filtered = []
-
-        for c in contours:
-            # if 30000 < cv.contourArea(c):
-            filtered.append(c)
-
-        if len(filtered) > 0:
-            for detected in filtered:
-
-                for letter in shapeContours:
-
-                    if cv.matchShapes(letter, detected, cv.CONTOURS_MATCH_I2, 0) < 0.1:
-                        cv.drawContours(alphabet, letter, -1, (0, 0, 255), 2)
-                        cv.imshow("alphabet", alphabet)
+        machineDetection(detectFromFrame, lastMatches, model)
 
         ###########################################################
 
         cv.imshow("Airdraw", frame)
+        while len(lastMatches) >= 60:
+            lastMatches.pop(0)
 
         stroke = cv.waitKey(1) & 0xff
         if stroke == ord('q') or stroke == 27:  # press 'q' or 'esc' to quit
