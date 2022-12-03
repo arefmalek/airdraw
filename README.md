@@ -1,3 +1,9 @@
+# Universidad Austral 
+
+## Vision Artificial 2022
+
+### Integrantes: Katia Cammisa, Alejo Ramirez Gismondi, Matias Gayo, Numa Leone Elizalde
+
 # Air Draw
 ![Demo of my trying out the hands](./demo.gif)
 
