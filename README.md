@@ -1,9 +1,3 @@
-# Universidad Austral 
-
-## Vision Artificial 2022
-
-### Integrantes: Katia Cammisa, Alejo Ramirez Gismondi, Matias Gayo, Numa Leone Elizalde
-
 # Air Draw
 ![Demo of my trying out the hands](./demo.gif)
 
@@ -24,18 +18,11 @@
 ### Drawing
 ![Drawing directly on screen](./demo_gifs/drawing.gif)
 
-To draw, you need to show the camera your hand with one finger up. This mode lets you draw any movement you do with the tip of that finger. 
-
 ### Hovering
 ![Hovering over drawings on screen](./demo_gifs/hovering.gif)
 
-To hover, you need to show the camera your hand with only two fingers up. This mode lets you move your hand freely without drawing, or deleting anything you've previously drawn.
-
 ### Erasing
 ![Erasing earlier drawings on screen](./demo_gifs/eraser.gif)
-
-To delete, you need to show the camera yout hand with three fingers up. This mode lets you delete any line that you have previously drawn, completely.
-
 
 ## Why?
 I've seen tons of attempts of this sort of thing with HSV masks, and while it's more true to image processing that openCV caters for, I was sort of against letting our own styluses [go to waste](https://money.cnn.com/2015/09/10/technology/apple-pencil-steve-jobs-stylus/index.html).
