@@ -3,12 +3,12 @@ import mediapipe as mp
 import numpy as np
 
 
-class HandDetector():
+class HandDetector:
     """
     class that deals with the hand processing of the project
     """
 
-    def __init__(self, mode = False, max_hands = 1):
+    def __init__(self, mode=False, max_hands=1):
         # setup
         self.max_hands = max_hands
         self.mode = mode
@@ -22,15 +22,14 @@ class HandDetector():
 
         returns image with annotations
         """
-        img_rgb = cv.cvtColor(img, cv.COLOR_BGR2RGB) # I think we need RGB
+        img_rgb = cv.cvtColor(img, cv.COLOR_BGR2RGB)  # I think we need RGB
         self.results = self.hands.process(img_rgb)
 
         if self.results.multi_hand_landmarks and draw:
             for hand_landmark in self.results.multi_hand_landmarks:
                 self.drawing.draw_landmarks(img, hand_landmark,
-                        mp.solutions.hands.HAND_CONNECTIONS)
+                                            mp.solutions.hands.HAND_CONNECTIONS)
         return img
-
 
     def detect_landmarks(self, shape: tuple):
         """
@@ -44,14 +43,14 @@ class HandDetector():
         """
         landmarks = []
         if self.results.multi_hand_landmarks:
-            my_hand = self.results.multi_hand_landmarks[0] # should only be one
+            my_hand = self.results.multi_hand_landmarks[0]  # should only be one
             for idx, landmark in enumerate(my_hand.landmark):
                 height, width, _ = shape
                 x, y = int(landmark.x * width), int(landmark.y * height)
                 landmarks.append([idx, x, y])
 
         return landmarks
-    
+
     def detect_gesture(self, landmarks, threshhold=0.90, debug=False):
         """
         This function determines which "mode" we are in, signified by the
@@ -71,9 +70,9 @@ class HandDetector():
         middle_vector = vectorize(landmarks[9], landmarks[12])
         ring_vector = vectorize(landmarks[13], landmarks[16])
 
-        vector_magnitude = lambda vector: sum(dim**2 for dim in vector)**.5
+        vector_magnitude = lambda vector: sum(dim ** 2 for dim in vector) ** .5
         cos_angle = lambda u, v: np.dot(u, v) / (vector_magnitude(u)
-                * vector_magnitude(v))
+                                                 * vector_magnitude(v))
 
         # really just to debug
         if debug:
@@ -82,25 +81,23 @@ class HandDetector():
         # index finger pointing out, middle finger tucked, ring finger tucked
         if cos_angle(index_vector, middle_vector) < threshhold and \
                 cos_angle(index_vector, ring_vector) < threshhold:
-           return "DRAW"
+            return "DRAW"
         # index finger pointing out, middle finger pointing, ring finger
         # tucked
-        elif cos_angle(index_vector, middle_vector) > threshhold and \
-        cos_angle(index_vector, ring_vector) < threshhold:
+        elif cos_angle(index_vector, middle_vector) > threshhold > cos_angle(index_vector, ring_vector):
             return "HOVER"
 
         # index finger pointing out, middle finger pointing, ring finger
         # pointing
         elif cos_angle(index_vector, middle_vector) > threshhold and \
-        cos_angle(index_vector, ring_vector) > threshhold:
+                cos_angle(index_vector, ring_vector) > threshhold:
             return "ERASE"
-
 
         # otherwise hover
         return "HOVER"
 
-def main():
 
+def main():
     cap = cv.VideoCapture(0)
     detector = HandDetector()
 
@@ -112,9 +109,9 @@ def main():
         landmark_list = detector.detect_landmarks(img.shape)
         if len(landmark_list) != 0:
             val = detector.detect_gesture(landmark_list, threshhold=0.9,
-                    )
+                                          )
             cv.putText(img, f"Mode: {val}", (50, 50),
-                    cv.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2, cv.LINE_AA)
+                       cv.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2, cv.LINE_AA)
 
         cv.imshow('Camera', img)
         if cv.waitKey(1) & 0xFF == ord('q'):
