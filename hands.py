@@ -98,6 +98,20 @@ class HandDetector():
 
         # otherwise hover
         return "HOVER"
+    
+    def determine_gesture(self, frame):
+        """
+        Takes in the image and just returns a JSON with the information
+        """
+
+        frame = self.detect_hands(frame)
+        landmark_list = self.detect_landmarks(frame.shape)
+        gesture = None 
+
+        if len(landmark_list) != 0:
+            gesture = self.detect_gesture(landmark_list)
+ 
+        return {"gesture": gesture, "landmarks": landmark_list}
 
 def main():
 

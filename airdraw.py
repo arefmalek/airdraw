@@ -23,24 +23,19 @@ def main():
         ret, frame = cap.read()
         frame = cv.flip(frame, 1)
     
-        
-        frame = detector.detect_hands(frame)
-        landmark_list = detector.detect_landmarks(frame.shape)
-        gesture = None 
-    
-        if len(landmark_list) != 0:
-            gesture = detector.detect_gesture(landmark_list)
-        
-
+        request = detector.determine_gesture(frame)
+   
+        gesture = request['gesture']
         # if we have a gesture, deal with it
         if gesture != None:
+            landmark_list = request['landmarks']
             idx_finger = landmark_list[8] # coordinates of tip of index fing
             _, r, c = idx_finger
     
-            frame = canvas.draw_dashboard(frame, gesture, (r, c))
     
             rows, cols, _ = frame.shape
 
+            # check the radius of concern 
             if (0 < r < cols and 0 < c < rows):
                 if gesture == "DRAW":
                     canvas.push_point((r, c))
@@ -61,11 +56,11 @@ def main():
                     alpha = 0.4
                     frame = cv.addWeighted(frame, alpha, img, 1-alpha, 0)
 
-
                     canvas.erase_mode((mid_r, mid_c), int(distance * 0.25))
-
                 elif gesture == "HOVER":
                     canvas.end_line()
+            
+            frame = canvas.draw_dashboard(frame, gesture, (r, c))
         else:
             frame = canvas.draw_dashboard(frame)
             canvas.end_line()
