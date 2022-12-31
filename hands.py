@@ -15,6 +15,8 @@ class HandDetector():
         # hand drawing stuff
         self.hands = mp.solutions.hands.Hands(self.mode, self.max_hands)
         self.drawing = mp.solutions.drawing_utils
+        # will be used for translation
+        self.prev_position = None
 
     def detect_hands(self, img, draw=True):
         """
@@ -52,7 +54,7 @@ class HandDetector():
 
         return landmarks
     
-    def detect_gesture(self, landmarks, threshhold=0.90, debug=False):
+    def detect_gesture(self, landmarks, threshhold=0.70, debug=False):
         """
         This function determines which "mode" we are in, signified by the
         hand-signs someone indicates when we are drawing
@@ -64,12 +66,21 @@ class HandDetector():
         returns:
             String that matches the gesture we have
         """
+        _, r, c = landmarks[5]
+        self.prev_position = (r, c)
         vectorize = lambda u, v: [v[i] - u[i] for i in range(len(v))]
 
+        # adding all vectors
+        # palm vectors
         palm_index_vector = vectorize(landmarks[0], landmarks[5])
+        palm_mid_vector = vectorize(landmarks[0], landmarks[9])
+        palm_ring_vector = vectorize(landmarks[0], landmarks[13])
+        palm_pinky_vector = vectorize(landmarks[0], landmarks[17])
+        # index vectors
         index_vector = vectorize(landmarks[5], landmarks[8])
         middle_vector = vectorize(landmarks[9], landmarks[12])
         ring_vector = vectorize(landmarks[13], landmarks[16])
+        pinky_vector = vectorize(landmarks[17], landmarks[20])
 
         vector_magnitude = lambda vector: sum(dim**2 for dim in vector)**.5
         cos_angle = lambda u, v: np.dot(u, v) / (vector_magnitude(u)
@@ -77,25 +88,39 @@ class HandDetector():
 
         # really just to debug
         if debug:
-            return cos_angle(index_vector, middle_vector)
+            return cos_angle(index_vector, palm_index_vector)
 
-        # index finger pointing out, middle finger tucked, ring finger tucked
-        if cos_angle(index_vector, middle_vector) < threshhold and \
-                cos_angle(index_vector, ring_vector) < threshhold:
+        # index finger pointing out, 
+        # middle/ring/pinky finger tucked
+        if cos_angle(palm_index_vector, index_vector) > threshhold and \
+            cos_angle(index_vector, middle_vector) < 0 and \
+                cos_angle(index_vector, ring_vector) < 0 and \
+                    cos_angle(index_vector, pinky_vector) < 0:
            return "DRAW"
-        # index finger pointing out, middle finger pointing, ring finger
-        # tucked
-        elif cos_angle(index_vector, middle_vector) > threshhold and \
-        cos_angle(index_vector, ring_vector) < threshhold:
+
+        # index/middle finger pointing out, 
+        # ring/pinky finger tucked
+        if cos_angle(palm_index_vector, index_vector) > threshhold and \
+            cos_angle(palm_mid_vector, middle_vector) > threshhold and \
+                cos_angle(index_vector, ring_vector) < 0 and \
+                    cos_angle(index_vector, pinky_vector) < 0:
             return "HOVER"
 
-        # index finger pointing out, middle finger pointing, ring finger
-        # pointing
-        elif cos_angle(index_vector, middle_vector) > threshhold and \
-        cos_angle(index_vector, ring_vector) > threshhold:
-            return "ERASE"
-
-
+        # index/middle/ring finger pointing out
+        # pinky finger tucked
+        if cos_angle(palm_index_vector, index_vector) > threshhold and \
+            cos_angle(index_vector, middle_vector) > 0.90 and \
+            cos_angle(index_vector, ring_vector) > 0.90 and \
+                    cos_angle(palm_pinky_vector, pinky_vector) < 0:
+           return "ERASE"
+        
+        # add the stuff relative to knuckles
+        if cos_angle(palm_index_vector, index_vector) > threshhold and \
+            cos_angle(palm_pinky_vector, pinky_vector) > threshhold and \
+                cos_angle(index_vector, middle_vector) < 0 and \
+                    cos_angle(index_vector, ring_vector) < 0:
+            return "TRANSLATE"
+        
         # otherwise hover
         return "HOVER"
     
@@ -108,10 +133,26 @@ class HandDetector():
         landmark_list = self.detect_landmarks(frame.shape)
         gesture = None 
 
+        prev_point = self.prev_position
         if len(landmark_list) != 0:
             gesture = self.detect_gesture(landmark_list)
+        
+        post = {"gesture": gesture, "landmarks": landmark_list, "previous": prev_point}
+        
+        # add additonal info based off of info the gesture we got
+        if gesture == "TRANSLATE":
+            # find the midpoint
+            idx_finger = landmark_list[8]
+            pinky_finger = landmark_list[20]
+
+            _, idx_r, idx_c = idx_finger
+            _, pinky_r, pinky_c = pinky_finger
+
+            midpoint_idx_pinky = ((idx_r + pinky_r) // 2, (idx_c + pinky_c) // 2)
+
+            # call function with previous point
  
-        return {"gesture": gesture, "landmarks": landmark_list}
+        return post
 
 def main():
 
@@ -126,6 +167,7 @@ def main():
         landmark_list = detector.detect_landmarks(img.shape)
         if len(landmark_list) != 0:
             val = detector.detect_gesture(landmark_list, threshhold=0.9,
+                    # debug=True
                     )
             cv.putText(img, f"Mode: {val}", (50, 50),
                     cv.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2, cv.LINE_AA)

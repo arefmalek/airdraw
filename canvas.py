@@ -25,7 +25,7 @@ class Canvas():
         self.grid = [[None] * width for row in range(height)]
 
     # TODO: support multiple colors
-    def draw_dashboard(self, frame, gesture = "HOVER", point = (-1, -1)):
+    def draw_dashboard(self, frame, gesture = "HOVER", landmarks = None):
         """
         Creates the dashboard based on the current status
 
@@ -37,7 +37,12 @@ class Canvas():
 
         """
         frame_height, frame_width, _ = frame.shape
-        x, y = point
+
+        # find index finger
+        idx_finger = (-1, -1, -1) # filler
+        if landmarks != None:
+            idx_finger = landmarks[8]
+        _, r, c = idx_finger 
 
         # add clear_button
         clear_button_width = int(frame_width *.2) # clear button always takes 20% of screen space
@@ -45,6 +50,7 @@ class Canvas():
         width_border = int(clear_button_width * .05) # 5% padding in both directions
         height_border = int(clear_button_height * .05)
 
+        # gray 'clear all' button drawn on
         frame = cv.rectangle(frame, (width_border, height_border), 
                             (clear_button_width - width_border,clear_button_height - height_border),
                             (122, 122, 122), -1)
@@ -54,8 +60,9 @@ class Canvas():
                         .5, (255, 255, 255), 2, cv.LINE_AA)
         
         # clear output!
-        if (width_border <= x <= clear_button_width - width_border and 
-            height_border <= y <= clear_button_height):
+        if (width_border <= c <= clear_button_width - width_border and 
+            height_border <= r <= clear_button_height):
+            print(r, c)
             self.lines = {}
             self.grid = [[None] * len(self.grid[0]) for row in
                     range(len(self.grid))]
@@ -76,16 +83,14 @@ class Canvas():
                                 (x_dist + button_width - width_border, button_height - height_border),
                                 color_arr, 
                                 -1)
-            
-           # cv.putText(frame, name_color, (x_dist + int(button_width * .4), int(button_height*.4)),
-           #             cv.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2,
-           #             cv.LINE_AA)
-            # just changing inputs if we hover over there
+            # if we're in drawing mode and hover over this button, 
+            # end line and chane color
             if gesture == "DRAW" and \
-                (height_border <= y <= button_height - height_border and \
-                x_dist + width_border <= x <= x_dist + button_width - width_border):
-                self.color = name_color
+                (height_border <= r <= button_height - height_border and \
+                x_dist + width_border <= c <= x_dist + button_width - width_border):
                 self.end_line()
+                self.color = name_color
+            # highlight the color we've selected
             if name_color == self.color:
                 frame = cv.rectangle(frame, 
                                     (x_dist + width_border, height_border), 
@@ -98,6 +103,22 @@ class Canvas():
                 (width_border, int(button_height * 2)),
                 cv.FONT_HERSHEY_SIMPLEX,
                 2, self.colors[self.color], 3, cv.LINE_AA)
+        
+        # draw the ring if we're in the eraser mode
+        if gesture == "ERASE":
+            # add additional finger from landmark
+            mid_finger = landmarks[12]
+            # We find the distance 
+            euclidean_dist= lambda a, b: sum( [(a[i]- b[i])**2 for i in
+                range(len(a))])**.5
+            distance = euclidean_dist(idx_finger, mid_finger)
+            _, mid_r, mid_c = mid_finger
+
+            # put circle on the map, and add some opacity
+            img = frame.copy()
+            cv.circle(img, (mid_r, mid_c), int(distance*.5), (0,255,255), -1)
+            alpha = 0.4
+            frame = cv.addWeighted(frame, alpha, img, 1-alpha, 0)
 
         return frame
 

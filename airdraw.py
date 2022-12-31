@@ -43,24 +43,21 @@ def main():
                     # stop current line
                     canvas.end_line()
 
-                    # We find the distance 
                     mid_fing = landmark_list[12]
-                    euclidean_dist= lambda a, b: sum( [(a[i]- b[i])**2 for i in
-                        range(len(a))])**.5
-                    distance = euclidean_dist(idx_finger, mid_fing)
                     _, mid_r, mid_c = mid_fing
 
-                    # put circle on the map, and add some opacity
-                    img = frame.copy()
-                    cv.circle(img, (mid_r, mid_c), int(distance*.5), (0,255,255), -1)
-                    alpha = 0.4
-                    frame = cv.addWeighted(frame, alpha, img, 1-alpha, 0)
+                    euclidean_dist= lambda a, b: sum( [(a[i]- b[i])**2 for i in range(len(a))])**.5
+                    distance = euclidean_dist(idx_finger, mid_fing)
 
                     canvas.erase_mode((mid_r, mid_c), int(distance * 0.25))
                 elif gesture == "HOVER":
                     canvas.end_line()
+                elif gesture == "TRANSLATE":
+                    canvas.end_line()
+                    #canvas.transate_lines()
+
             
-            frame = canvas.draw_dashboard(frame, gesture, (r, c))
+            frame = canvas.draw_dashboard(frame, gesture, landmarks=landmark_list)
         else:
             frame = canvas.draw_dashboard(frame)
             canvas.end_line()
