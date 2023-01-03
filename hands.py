@@ -77,11 +77,12 @@ class HandDetector():
         palm_mid_vector = vectorize(landmarks[0], landmarks[9])
         palm_ring_vector = vectorize(landmarks[0], landmarks[13])
         palm_pinky_vector = vectorize(landmarks[0], landmarks[17])
-        # index vectors
-        index_vector = vectorize(landmarks[5], landmarks[8])
-        middle_vector = vectorize(landmarks[9], landmarks[12])
-        ring_vector = vectorize(landmarks[13], landmarks[16])
-        pinky_vector = vectorize(landmarks[17], landmarks[20])
+
+        # index vectors, each start from first knuckle of the hand
+        index_vector = vectorize(landmarks[6], landmarks[8])
+        middle_vector = vectorize(landmarks[10], landmarks[12])
+        ring_vector = vectorize(landmarks[14], landmarks[16])
+        pinky_vector = vectorize(landmarks[18], landmarks[20])
 
         vector_magnitude = lambda vector: sum(dim**2 for dim in vector)**.5
         cos_angle = lambda u, v: np.dot(u, v) / (vector_magnitude(u)
@@ -171,9 +172,11 @@ class HandDetector():
             shift = (r - self.prev_position[0], c - self.prev_position[1])
             post['shift'] = shift
 
-            # change the shift for the next iteration
-            self.prev_position = (r, c)
  
+        # update previous position position with current point
+        _, c, r = idx_finger
+        self.prev_position = (r, c)
+
         return post
 def main():
 

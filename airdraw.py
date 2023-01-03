@@ -12,8 +12,6 @@ def main():
     width = int(cap.get(cv.CAP_PROP_FRAME_WIDTH) + 0.5)
     height = int(cap.get(cv.CAP_PROP_FRAME_HEIGHT) + 0.5)
 
-    print(width, height)
- 
     # initialize the canvas element and hand-detector program
     canvas = Canvas(width, height)
     detector = HandDetector()
@@ -62,7 +60,10 @@ def main():
                     radius = request['idx_pinky_radius']
 
                     canvas.translate_mode(idx_position, int(radius*.5), shift)
-            
+
+                    # add features for the drawing phase
+                    data['radius'] = radius
+                
             frame = canvas.draw_dashboard(frame, gesture, data = data)
         else:
             frame = canvas.draw_dashboard(frame)

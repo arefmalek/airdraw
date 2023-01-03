@@ -60,7 +60,6 @@ class Canvas():
         # clear output!
         if (width_border <= c <= clear_button_width - width_border and 
             height_border <= r <= clear_button_height):
-            print(r, c)
             self.lines = {}
             self.grid = [[None] * len(self.grid[0]) for row in range(len(self.grid))]
 
@@ -112,7 +111,15 @@ class Canvas():
             cv.circle(img, (mid_r, mid_c), int(distance*.5), (0,255,255), -1)
             alpha = 0.4
             frame = cv.addWeighted(frame, alpha, img, 1-alpha, 0)
+        elif gesture == "TRANSLATE":
+            distance = data['radius']
+            _, c, r = data['idx_finger']
 
+            # put circle on the map, and add some opacity
+            img = frame.copy()
+            cv.circle(img, (c, r), int(distance*.5), (255,255,255), -1)
+            alpha = 0.4
+            frame = cv.addWeighted(frame, alpha, img, 1-alpha, 0)
         return frame
 
     def push_point(self, point):
@@ -169,8 +176,6 @@ class Canvas():
                     continue
                 prev_y, prev_x = line.points[i-1]
                 y, x = point
-#                prev_dr, prev_dd = line.points[i-1]
-#                dr, dd = point
                 cv.line(
                         frame, 
                         (prev_x, prev_y), 
@@ -207,10 +212,8 @@ class Canvas():
                 if self.grid[dr][dc] != None:
                     # get the origin point of this line
                     lines.add(self.grid[dr][dc])
-        
-        if len(lines):
-            print(lines)
 
+        # for each origin point in the circle
         for og_point in lines:
             # remove original reference to the line and original grid values
             line = self.lines.pop(og_point)
@@ -220,6 +223,8 @@ class Canvas():
             # map the shift to the values of the line
             line.points = list(map(lambda x: (x[0] + shift[0], x[1] + shift[1]), line.points))
             line.origin = line.points[0] # change origin values
+
+            # add the points back to the grid
             for r, c in line.points:
                 self.grid[r][c] = line.origin # map the new points on the grid
 
