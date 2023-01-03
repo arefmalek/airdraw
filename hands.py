@@ -67,6 +67,7 @@ class HandDetector():
             String that matches the gesture we have
         """
         _, r, c = landmarks[5]
+        temp = self.prev_position
         self.prev_position = (r, c)
         vectorize = lambda u, v: [v[i] - u[i] for i in range(len(v))]
 
@@ -136,24 +137,35 @@ class HandDetector():
         prev_point = self.prev_position
         if len(landmark_list) != 0:
             gesture = self.detect_gesture(landmark_list)
+        else:
+            # no hand detected, no use of gesture
+            return {}
+
+
+        # just writing in finger info
+        idx_finger = landmark_list[8] # coordinates of tip of index fing
+        mid_fing = landmark_list[12]
+        pinky_finger = landmark_list[20]
+
+        euclidean_dist = lambda a1, a2: sum([(x-y)**2 for x, y in zip(a1, a2)])**.5
+
+        post = {"gesture": gesture, "idx_fing_tip": idx_finger}
         
-        post = {"gesture": gesture, "landmarks": landmark_list, "previous": prev_point}
-        
+        if gesture == "ERASE":
+            # add the radius distance
+            distance = euclidean_dist(idx_finger[1:], mid_fing[1:])
+            post['mid_fing_tip'] = mid_fing
+            post['idx_mid_radius'] = distance
+
         # add additonal info based off of info the gesture we got
-        if gesture == "TRANSLATE":
+        elif gesture == "TRANSLATE":
             # find the midpoint
-            idx_finger = landmark_list[8]
-            pinky_finger = landmark_list[20]
-
-            _, idx_r, idx_c = idx_finger
-            _, pinky_r, pinky_c = pinky_finger
-
-            midpoint_idx_pinky = ((idx_r + pinky_r) // 2, (idx_c + pinky_c) // 2)
+            distance = euclidean_dist(idx_finger[1:], pinky_finger[1:])
+            post['idx_pinky_radius'] = distance
 
             # call function with previous point
  
         return post
-
 def main():
 
     cap = cv.VideoCapture(0)

@@ -18,14 +18,12 @@ class Canvas():
                 "RED": (0,0,255),
                 }
         self.color = "GREEN" # only really used to initialize lines
-        self.lines = {}
-        self.currLine = None
-        # has to be python grid b/c I'm storing strings
-        # no numpy :( gotta use cpp soon
-        self.grid = [[None] * width for row in range(height)]
+        self.lines = {} # whole list of points
+        self.currLine = None # this is the line we're adding to 
+        self.grid = [[None] * width for row in range(height)] # pointers to our functions
 
     # TODO: support multiple colors
-    def draw_dashboard(self, frame, gesture = "HOVER", landmarks = None):
+    def draw_dashboard(self, frame, gesture = "HOVER", data = {}):
         """
         Creates the dashboard based on the current status
 
@@ -40,8 +38,8 @@ class Canvas():
 
         # find index finger
         idx_finger = (-1, -1, -1) # filler
-        if landmarks != None:
-            idx_finger = landmarks[8]
+        if data.get('idx_finger') != None:
+            idx_finger = data['idx_finger']
         _, r, c = idx_finger 
 
         # add clear_button
@@ -67,7 +65,7 @@ class Canvas():
             self.grid = [[None] * len(self.grid[0]) for row in
                     range(len(self.grid))]
 
-        # we have less space now
+        # we have less space now, draw the buttons
         current_width  = frame_width - clear_button_width
         button_width = int(current_width / len(self.colors))
         button_height = clear_button_height
@@ -106,13 +104,9 @@ class Canvas():
         
         # draw the ring if we're in the eraser mode
         if gesture == "ERASE":
-            # add additional finger from landmark
-            mid_finger = landmarks[12]
-            # We find the distance 
-            euclidean_dist= lambda a, b: sum( [(a[i]- b[i])**2 for i in
-                range(len(a))])**.5
-            distance = euclidean_dist(idx_finger, mid_finger)
-            _, mid_r, mid_c = mid_finger
+            # get middle finger and radius of circle to draw
+            distance = data['radius']
+            _, mid_r, mid_c = data['mid_fing_tip']
 
             # put circle on the map, and add some opacity
             img = frame.copy()
@@ -131,26 +125,29 @@ class Canvas():
             index finger (assuming we are in drawing mode)
         
         """
-        if len(self.lines) == 0 or self.currLine == None or self.lines[self.currLine].active == False:
+
+        # if there isn't an active line being drawn, start one
+        if len(self.lines) == 0 or self.currLine == None or self.lines[self.currLine.origin].active == False:
             # we need to initialize a line
             line = Line(self.color, point) # start a line with a new color
-            self.currLine = str(line)
-            self.lines[self.currLine] = line
+            self.currLine = line
+            self.lines[point] = self.currLine # store origin in the lines
         else:
-            self.lines[self.currLine].points.append(point)
+            # get the current line, add the new point to the linked list
+            self.currLine.points.append(point)
 
         # gotta update our grid
         dleft, dtop = point 
         # dleft is distance from left border, 
         # dtop distance from top border
-        self.grid[dtop][dleft] = self.currLine
+        self.grid[dtop][dleft] = self.currLine.origin
         
     def end_line(self):
         """
             deactivates current line 
         """
         if self.currLine != None and len(self.lines) > 0:
-            self.lines[self.currLine].active = False
+            self.lines[self.currLine.origin].active = False
 
     def draw_lines(self, frame):
         """
@@ -182,6 +179,34 @@ class Canvas():
                         )
         return frame
 
+    def translate_mode(self, position, radius, shift):
+        """
+        Works as following:
+
+        1. gather all lines in the radius
+        2. for each line:
+            shift each point in the line by the shift variable
+        
+        This should move each grid point where it needs to be, 
+        which leaves is ready to draw on our regular draw function.
+        """
+        dleft, dtop = position
+
+        # we should be able to collect all unique origin points 
+        lines = set()
+
+        # for each point in the radius
+        for dr in range(max(0, dleft - radius), 
+                min(dleft + radius, len(self.grid[0]))):
+            for dc in range(
+                            max(0, dtop - radius), 
+                            min(dtop + radius, len(self.grid))):
+                # if we have some point in the line
+                if self.grid[dc][dr] != None:
+                    # get the origin point of this line
+                    origin = None
+                    # add this point (it's a set so we only have unique lines)
+
     # start of erase mode code
     def erase_mode(self, position, radius):
         """
@@ -207,6 +232,7 @@ class Canvas():
                         x, y = point
                         self.grid[y][x] = None
 
+
 class Line():
     """
     Helper class to represent the lines put on the screen
@@ -214,6 +240,7 @@ class Line():
 
     def __init__(self, color, origin):
         self.color = color
+        self.origin = origin
         self.points = [origin]
         self.active = True
 

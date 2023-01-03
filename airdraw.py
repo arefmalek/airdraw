@@ -25,14 +25,13 @@ def main():
     
         request = detector.determine_gesture(frame)
    
-        gesture = request['gesture']
+        gesture = request.get('gesture')
         # if we have a gesture, deal with it
         if gesture != None:
-            landmark_list = request['landmarks']
-            idx_finger = landmark_list[8] # coordinates of tip of index fing
+            idx_finger = request['idx_fing_tip'] # coordinates of tip of index fing
             _, r, c = idx_finger
     
-    
+            data = {'idx_finger': idx_finger}
             rows, cols, _ = frame.shape
 
             # check the radius of concern 
@@ -43,13 +42,14 @@ def main():
                     # stop current line
                     canvas.end_line()
 
-                    mid_fing = landmark_list[12]
-                    _, mid_r, mid_c = mid_fing
+                    radius = request['idx_mid_radius']
 
-                    euclidean_dist= lambda a, b: sum( [(a[i]- b[i])**2 for i in range(len(a))])**.5
-                    distance = euclidean_dist(idx_finger, mid_fing)
+                    _, mid_r, mid_c = request['mid_fing_tip']
+                    canvas.erase_mode((mid_r, mid_c), int(radius*0.5))
 
-                    canvas.erase_mode((mid_r, mid_c), int(distance * 0.25))
+                    # add features for the drawing phase
+                    data['mid_fing_tip'] = request['mid_fing_tip']
+                    data['radius'] = radius
                 elif gesture == "HOVER":
                     canvas.end_line()
                 elif gesture == "TRANSLATE":
@@ -57,7 +57,7 @@ def main():
                     #canvas.transate_lines()
 
             
-            frame = canvas.draw_dashboard(frame, gesture, landmarks=landmark_list)
+            frame = canvas.draw_dashboard(frame, gesture, data = data)
         else:
             frame = canvas.draw_dashboard(frame)
             canvas.end_line()
