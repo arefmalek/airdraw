@@ -67,8 +67,8 @@ class HandDetector():
             String that matches the gesture we have
         """
         _, r, c = landmarks[5]
-        temp = self.prev_position
-        self.prev_position = (r, c)
+        # temp = self.prev_position
+        # self.prev_position = (r, c)
         vectorize = lambda u, v: [v[i] - u[i] for i in range(len(v))]
 
         # adding all vectors
@@ -134,7 +134,6 @@ class HandDetector():
         landmark_list = self.detect_landmarks(frame.shape)
         gesture = None 
 
-        prev_point = self.prev_position
         if len(landmark_list) != 0:
             gesture = self.detect_gesture(landmark_list)
         else:
@@ -163,7 +162,17 @@ class HandDetector():
             distance = euclidean_dist(idx_finger[1:], pinky_finger[1:])
             post['idx_pinky_radius'] = distance
 
+            _, c, r = idx_finger
             # call function with previous point
+            if self.prev_position == None:
+                self.prev_position = (r, c)
+            
+            # calculate and store the shift
+            shift = (r - self.prev_position[0], c - self.prev_position[1])
+            post['shift'] = shift
+
+            # change the shift for the next iteration
+            self.prev_position = (r, c)
  
         return post
 def main():

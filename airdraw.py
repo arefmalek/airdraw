@@ -11,6 +11,8 @@ def main():
     # width and height for 2-D grid
     width = int(cap.get(cv.CAP_PROP_FRAME_WIDTH) + 0.5)
     height = int(cap.get(cv.CAP_PROP_FRAME_HEIGHT) + 0.5)
+
+    print(width, height)
  
     # initialize the canvas element and hand-detector program
     canvas = Canvas(width, height)
@@ -29,13 +31,13 @@ def main():
         # if we have a gesture, deal with it
         if gesture != None:
             idx_finger = request['idx_fing_tip'] # coordinates of tip of index fing
-            _, r, c = idx_finger
+            _, c, r = idx_finger
     
             data = {'idx_finger': idx_finger}
             rows, cols, _ = frame.shape
 
             # check the radius of concern 
-            if (0 < r < cols and 0 < c < rows):
+            if (0 < c < cols and 0 < r < rows):
                 if gesture == "DRAW":
                     canvas.push_point((r, c))
                 elif gesture == "ERASE":
@@ -54,8 +56,12 @@ def main():
                     canvas.end_line()
                 elif gesture == "TRANSLATE":
                     canvas.end_line()
-                    #canvas.transate_lines()
+                    
+                    idx_position = (r, c)
+                    shift = request['shift']
+                    radius = request['idx_pinky_radius']
 
+                    canvas.translate_mode(idx_position, int(radius*.5), shift)
             
             frame = canvas.draw_dashboard(frame, gesture, data = data)
         else:

@@ -11,7 +11,7 @@ class Canvas():
     draw lines onto the screen
     """
 
-    def __init__(self, width, height):
+    def __init__(self, columns, rows):
         self.colors = {
                 "BLUE": (255,0,0),
                 "GREEN": (0,255,0),
@@ -20,7 +20,7 @@ class Canvas():
         self.color = "GREEN" # only really used to initialize lines
         self.lines = {} # whole list of points
         self.currLine = None # this is the line we're adding to 
-        self.grid = [[None] * width for row in range(height)] # pointers to our functions
+        self.grid = [[None] * columns for row in range(rows)] # pointers to our functions
 
     # TODO: support multiple colors
     def draw_dashboard(self, frame, gesture = "HOVER", data = {}):
@@ -40,7 +40,7 @@ class Canvas():
         idx_finger = (-1, -1, -1) # filler
         if data.get('idx_finger') != None:
             idx_finger = data['idx_finger']
-        _, r, c = idx_finger 
+        _, c, r = idx_finger 
 
         # add clear_button
         clear_button_width = int(frame_width *.2) # clear button always takes 20% of screen space
@@ -62,8 +62,7 @@ class Canvas():
             height_border <= r <= clear_button_height):
             print(r, c)
             self.lines = {}
-            self.grid = [[None] * len(self.grid[0]) for row in
-                    range(len(self.grid))]
+            self.grid = [[None] * len(self.grid[0]) for row in range(len(self.grid))]
 
         # we have less space now, draw the buttons
         current_width  = frame_width - clear_button_width
@@ -137,10 +136,10 @@ class Canvas():
             self.currLine.points.append(point)
 
         # gotta update our grid
-        dleft, dtop = point 
+        row, col = point 
         # dleft is distance from left border, 
         # dtop distance from top border
-        self.grid[dtop][dleft] = self.currLine.origin
+        self.grid[row][col] = self.currLine.origin
         
     def end_line(self):
         """
@@ -168,12 +167,14 @@ class Canvas():
             for i, point in enumerate(line.points):
                 if i == 0:
                     continue
-                prev_dr, prev_dd = line.points[i-1]
-                dr, dd = point
+                prev_y, prev_x = line.points[i-1]
+                y, x = point
+#                prev_dr, prev_dd = line.points[i-1]
+#                dr, dd = point
                 cv.line(
                         frame, 
-                        (prev_dr, prev_dd), 
-                        (dr, dd), 
+                        (prev_x, prev_y), 
+                        (x, y), 
                         self.colors[line.color],
                         5
                         )
@@ -190,6 +191,7 @@ class Canvas():
         This should move each grid point where it needs to be, 
         which leaves is ready to draw on our regular draw function.
         """
+        # TODO: maybe speedup by looking to implement by "closest pair" approach
         dleft, dtop = position
 
         # we should be able to collect all unique origin points 
@@ -202,10 +204,27 @@ class Canvas():
                             max(0, dtop - radius), 
                             min(dtop + radius, len(self.grid))):
                 # if we have some point in the line
-                if self.grid[dc][dr] != None:
+                if self.grid[dr][dc] != None:
                     # get the origin point of this line
-                    origin = None
-                    # add this point (it's a set so we only have unique lines)
+                    lines.add(self.grid[dr][dc])
+        
+        if len(lines):
+            print(lines)
+
+        for og_point in lines:
+            # remove original reference to the line and original grid values
+            line = self.lines.pop(og_point)
+            for r, c in line.points:
+                self.grid[r][c] = None
+
+            # map the shift to the values of the line
+            line.points = list(map(lambda x: (x[0] + shift[0], x[1] + shift[1]), line.points))
+            line.origin = line.points[0] # change origin values
+            for r, c in line.points:
+                self.grid[r][c] = line.origin # map the new points on the grid
+
+            # put the value back in the lines
+            self.lines[line.origin] = line
 
     # start of erase mode code
     def erase_mode(self, position, radius):
@@ -228,9 +247,8 @@ class Canvas():
                 if self.grid[dc][dr] != None:
                     key = self.grid[dc][dr]
                     line = self.lines.pop(key)
-                    for point in line.points:
-                        x, y = point
-                        self.grid[y][x] = None
+                    for (r, c) in line.points:
+                        self.grid[r][c] = None
 
 
 class Line():
