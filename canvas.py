@@ -133,7 +133,7 @@ class Canvas():
         """
 
         # if there isn't an active line being drawn, start one
-        if len(self.lines) == 0 or self.currLine == None or self.lines[self.currLine.origin].active == False:
+        if len(self.lines) == 0 or self.currLine == None or self.lines[self.currLine.get_origin()].active == False:
             # we need to initialize a line
             line = Line(self.color, point) # start a line with a new color
             self.currLine = line
@@ -146,14 +146,14 @@ class Canvas():
         row, col = point 
         # dleft is distance from left border, 
         # dtop distance from top border
-        self.grid[row][col] = self.currLine.origin
+        self.grid[row][col] = self.currLine.get_origin()
         
     def end_line(self):
         """
             deactivates current line 
         """
         if self.currLine != None and len(self.lines) > 0:
-            self.lines[self.currLine.origin].active = False
+            self.lines[self.currLine.get_origin()].active = False
 
     def draw_lines(self, frame):
         """
@@ -197,39 +197,55 @@ class Canvas():
         which leaves is ready to draw on our regular draw function.
         """
         # TODO: maybe speedup by looking to implement by "closest pair" approach
-        dleft, dtop = position
+        r, c = position
 
         # we should be able to collect all unique origin points 
-        lines = set()
+        uniqueLines = set()
 
         # for each point in the radius
-        for dr in range(max(0, dleft - radius), 
-                min(dleft + radius, len(self.grid[0]))):
+        for dr in range(
+                max(0, r - radius), 
+                min(r + radius, len(self.grid) - 1)):
             for dc in range(
-                            max(0, dtop - radius), 
-                            min(dtop + radius, len(self.grid))):
+                    max(0, c - radius), 
+                    min(c + radius, len(self.grid[0]) - 1)):
                 # if we have some point in the line
                 if self.grid[dr][dc] != None:
                     # get the origin point of this line
-                    lines.add(self.grid[dr][dc])
+                    uniqueLines.add(self.grid[dr][dc])
+        
 
         # for each origin point in the circle
-        for og_point in lines:
+        for og_point in uniqueLines:
             # remove original reference to the line and original grid values
             line = self.lines.pop(og_point)
             for r, c in line.points:
                 self.grid[r][c] = None
 
-            # map the shift to the values of the line
-            line.points = list(map(lambda x: (x[0] + shift[0], x[1] + shift[1]), line.points))
-            line.origin = line.points[0] # change origin values
+            translation = []
+            for r, c in line.points:
+                trans_r, trans_c = r + shift[0], c + shift[1]
+                # if the translated point is in the grid, add it, otw skip
+                if (0 <= trans_r < len(self.grid)) and (0 <= trans_c < len(self.grid[0])):
+                    translation.append((trans_r, trans_c))
+                else:
+                    break
+            
+            # if each point can be translated, change points arr
+            if len(translation) == len(line.points):
+                line.points = translation
+            # otherwise we dont translate the point
+
+
+#            # map the shift to the values of the line
+#            line.points = list(map(lambda x: (x[0] + shift[0], x[1] + shift[1]), line.points))
 
             # add the points back to the grid
             for r, c in line.points:
-                self.grid[r][c] = line.origin # map the new points on the grid
+                self.grid[r][c] = line.get_origin() # map the new points on the grid
 
             # put the value back in the lines
-            self.lines[line.origin] = line
+            self.lines[line.get_origin()] = line
 
     # start of erase mode code
     def erase_mode(self, position, radius):
@@ -263,9 +279,11 @@ class Line():
 
     def __init__(self, color, origin):
         self.color = color
-        self.origin = origin
         self.points = [origin]
         self.active = True
+
+    def get_origin(self):
+        return self.points[0]
 
     def __repr__(self):
         return f"\tcolor({self.color})\n \

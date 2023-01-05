@@ -58,6 +58,7 @@ def main():
                     idx_position = (r, c)
                     shift = request['shift']
                     radius = request['idx_pinky_radius']
+                    radius = int(radius*.8)
 
                     canvas.translate_mode(idx_position, int(radius*.5), shift)
 
