@@ -11,7 +11,7 @@ def main():
     # width and height for 2-D grid
     width = int(cap.get(cv.CAP_PROP_FRAME_WIDTH) + 0.5)
     height = int(cap.get(cv.CAP_PROP_FRAME_HEIGHT) + 0.5)
- 
+
     # initialize the canvas element and hand-detector program
     canvas = Canvas(width, height)
     detector = HandDetector()
@@ -23,49 +23,48 @@ def main():
         ret, frame = cap.read()
         frame = cv.flip(frame, 1)
     
-        
-        frame = detector.detect_hands(frame)
-        landmark_list = detector.detect_landmarks(frame.shape)
-        gesture = None 
-    
-        if len(landmark_list) != 0:
-            gesture = detector.detect_gesture(landmark_list)
-        
-
+        request = detector.determine_gesture(frame)
+   
+        gesture = request.get('gesture')
         # if we have a gesture, deal with it
         if gesture != None:
-            idx_finger = landmark_list[8] # coordinates of tip of index fing
-            _, r, c = idx_finger
+            idx_finger = request['idx_fing_tip'] # coordinates of tip of index fing
+            _, c, r = idx_finger
     
-            frame = canvas.draw_dashboard(frame, gesture, (r, c))
-    
+            data = {'idx_finger': idx_finger}
             rows, cols, _ = frame.shape
 
-            if (0 < r < cols and 0 < c < rows):
+            # check the radius of concern 
+            if (0 < c < cols and 0 < r < rows):
                 if gesture == "DRAW":
                     canvas.push_point((r, c))
                 elif gesture == "ERASE":
                     # stop current line
                     canvas.end_line()
 
-                    # We find the distance 
-                    mid_fing = landmark_list[12]
-                    euclidean_dist= lambda a, b: sum( [(a[i]- b[i])**2 for i in
-                        range(len(a))])**.5
-                    distance = euclidean_dist(idx_finger, mid_fing)
-                    _, mid_r, mid_c = mid_fing
+                    radius = request['idx_mid_radius']
 
-                    # put circle on the map, and add some opacity
-                    img = frame.copy()
-                    cv.circle(img, (mid_r, mid_c), int(distance*.5), (0,255,255), -1)
-                    alpha = 0.4
-                    frame = cv.addWeighted(frame, alpha, img, 1-alpha, 0)
+                    _, mid_r, mid_c = request['mid_fing_tip']
+                    canvas.erase_mode((mid_r, mid_c), int(radius*0.5))
 
-
-                    canvas.erase_mode((mid_r, mid_c), int(distance * 0.25))
-
+                    # add features for the drawing phase
+                    data['mid_fing_tip'] = request['mid_fing_tip']
+                    data['radius'] = radius
                 elif gesture == "HOVER":
                     canvas.end_line()
+                elif gesture == "TRANSLATE":
+                    canvas.end_line()
+                    
+                    idx_position = (r, c)
+                    shift = request['shift']
+                    radius = request['idx_pinky_radius']
+
+                    canvas.translate_mode(idx_position, int(radius*.5), shift)
+
+                    # add features for the drawing phase
+                    data['radius'] = radius
+                
+            frame = canvas.draw_dashboard(frame, gesture, data = data)
         else:
             frame = canvas.draw_dashboard(frame)
             canvas.end_line()

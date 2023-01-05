@@ -11,21 +11,19 @@ class Canvas():
     draw lines onto the screen
     """
 
-    def __init__(self, width, height):
+    def __init__(self, columns, rows):
         self.colors = {
                 "BLUE": (255,0,0),
                 "GREEN": (0,255,0),
                 "RED": (0,0,255),
                 }
         self.color = "GREEN" # only really used to initialize lines
-        self.lines = {}
-        self.currLine = None
-        # has to be python grid b/c I'm storing strings
-        # no numpy :( gotta use cpp soon
-        self.grid = [[None] * width for row in range(height)]
+        self.lines = {} # whole list of points
+        self.currLine = None # this is the line we're adding to 
+        self.grid = [[None] * columns for row in range(rows)] # pointers to our functions
 
     # TODO: support multiple colors
-    def draw_dashboard(self, frame, gesture = "HOVER", point = (-1, -1)):
+    def draw_dashboard(self, frame, gesture = "HOVER", data = {}):
         """
         Creates the dashboard based on the current status
 
@@ -37,7 +35,12 @@ class Canvas():
 
         """
         frame_height, frame_width, _ = frame.shape
-        x, y = point
+
+        # find index finger
+        idx_finger = (-1, -1, -1) # filler
+        if data.get('idx_finger') != None:
+            idx_finger = data['idx_finger']
+        _, c, r = idx_finger 
 
         # add clear_button
         clear_button_width = int(frame_width *.2) # clear button always takes 20% of screen space
@@ -45,6 +48,7 @@ class Canvas():
         width_border = int(clear_button_width * .05) # 5% padding in both directions
         height_border = int(clear_button_height * .05)
 
+        # gray 'clear all' button drawn on
         frame = cv.rectangle(frame, (width_border, height_border), 
                             (clear_button_width - width_border,clear_button_height - height_border),
                             (122, 122, 122), -1)
@@ -54,13 +58,12 @@ class Canvas():
                         .5, (255, 255, 255), 2, cv.LINE_AA)
         
         # clear output!
-        if (width_border <= x <= clear_button_width - width_border and 
-            height_border <= y <= clear_button_height):
+        if (width_border <= c <= clear_button_width - width_border and 
+            height_border <= r <= clear_button_height):
             self.lines = {}
-            self.grid = [[None] * len(self.grid[0]) for row in
-                    range(len(self.grid))]
+            self.grid = [[None] * len(self.grid[0]) for row in range(len(self.grid))]
 
-        # we have less space now
+        # we have less space now, draw the buttons
         current_width  = frame_width - clear_button_width
         button_width = int(current_width / len(self.colors))
         button_height = clear_button_height
@@ -76,16 +79,14 @@ class Canvas():
                                 (x_dist + button_width - width_border, button_height - height_border),
                                 color_arr, 
                                 -1)
-            
-           # cv.putText(frame, name_color, (x_dist + int(button_width * .4), int(button_height*.4)),
-           #             cv.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2,
-           #             cv.LINE_AA)
-            # just changing inputs if we hover over there
+            # if we're in drawing mode and hover over this button, 
+            # end line and chane color
             if gesture == "DRAW" and \
-                (height_border <= y <= button_height - height_border and \
-                x_dist + width_border <= x <= x_dist + button_width - width_border):
-                self.color = name_color
+                (height_border <= r <= button_height - height_border and \
+                x_dist + width_border <= c <= x_dist + button_width - width_border):
                 self.end_line()
+                self.color = name_color
+            # highlight the color we've selected
             if name_color == self.color:
                 frame = cv.rectangle(frame, 
                                     (x_dist + width_border, height_border), 
@@ -98,7 +99,27 @@ class Canvas():
                 (width_border, int(button_height * 2)),
                 cv.FONT_HERSHEY_SIMPLEX,
                 2, self.colors[self.color], 3, cv.LINE_AA)
+        
+        # draw the ring if we're in the eraser mode
+        if gesture == "ERASE":
+            # get middle finger and radius of circle to draw
+            distance = data['radius']
+            _, mid_r, mid_c = data['mid_fing_tip']
 
+            # put circle on the map, and add some opacity
+            img = frame.copy()
+            cv.circle(img, (mid_r, mid_c), int(distance*.5), (0,255,255), -1)
+            alpha = 0.4
+            frame = cv.addWeighted(frame, alpha, img, 1-alpha, 0)
+        elif gesture == "TRANSLATE":
+            distance = data['radius']
+            _, c, r = data['idx_finger']
+
+            # put circle on the map, and add some opacity
+            img = frame.copy()
+            cv.circle(img, (c, r), int(distance*.5), (255,255,255), -1)
+            alpha = 0.4
+            frame = cv.addWeighted(frame, alpha, img, 1-alpha, 0)
         return frame
 
     def push_point(self, point):
@@ -110,26 +131,29 @@ class Canvas():
             index finger (assuming we are in drawing mode)
         
         """
-        if len(self.lines) == 0 or self.currLine == None or self.lines[self.currLine].active == False:
+
+        # if there isn't an active line being drawn, start one
+        if len(self.lines) == 0 or self.currLine == None or self.lines[self.currLine.origin].active == False:
             # we need to initialize a line
             line = Line(self.color, point) # start a line with a new color
-            self.currLine = str(line)
-            self.lines[self.currLine] = line
+            self.currLine = line
+            self.lines[point] = self.currLine # store origin in the lines
         else:
-            self.lines[self.currLine].points.append(point)
+            # get the current line, add the new point to the linked list
+            self.currLine.points.append(point)
 
         # gotta update our grid
-        dleft, dtop = point 
+        row, col = point 
         # dleft is distance from left border, 
         # dtop distance from top border
-        self.grid[dtop][dleft] = self.currLine
+        self.grid[row][col] = self.currLine.origin
         
     def end_line(self):
         """
             deactivates current line 
         """
         if self.currLine != None and len(self.lines) > 0:
-            self.lines[self.currLine].active = False
+            self.lines[self.currLine.origin].active = False
 
     def draw_lines(self, frame):
         """
@@ -150,16 +174,62 @@ class Canvas():
             for i, point in enumerate(line.points):
                 if i == 0:
                     continue
-                prev_dr, prev_dd = line.points[i-1]
-                dr, dd = point
+                prev_y, prev_x = line.points[i-1]
+                y, x = point
                 cv.line(
                         frame, 
-                        (prev_dr, prev_dd), 
-                        (dr, dd), 
+                        (prev_x, prev_y), 
+                        (x, y), 
                         self.colors[line.color],
                         5
                         )
         return frame
+
+    def translate_mode(self, position, radius, shift):
+        """
+        Works as following:
+
+        1. gather all lines in the radius
+        2. for each line:
+            shift each point in the line by the shift variable
+        
+        This should move each grid point where it needs to be, 
+        which leaves is ready to draw on our regular draw function.
+        """
+        # TODO: maybe speedup by looking to implement by "closest pair" approach
+        dleft, dtop = position
+
+        # we should be able to collect all unique origin points 
+        lines = set()
+
+        # for each point in the radius
+        for dr in range(max(0, dleft - radius), 
+                min(dleft + radius, len(self.grid[0]))):
+            for dc in range(
+                            max(0, dtop - radius), 
+                            min(dtop + radius, len(self.grid))):
+                # if we have some point in the line
+                if self.grid[dr][dc] != None:
+                    # get the origin point of this line
+                    lines.add(self.grid[dr][dc])
+
+        # for each origin point in the circle
+        for og_point in lines:
+            # remove original reference to the line and original grid values
+            line = self.lines.pop(og_point)
+            for r, c in line.points:
+                self.grid[r][c] = None
+
+            # map the shift to the values of the line
+            line.points = list(map(lambda x: (x[0] + shift[0], x[1] + shift[1]), line.points))
+            line.origin = line.points[0] # change origin values
+
+            # add the points back to the grid
+            for r, c in line.points:
+                self.grid[r][c] = line.origin # map the new points on the grid
+
+            # put the value back in the lines
+            self.lines[line.origin] = line
 
     # start of erase mode code
     def erase_mode(self, position, radius):
@@ -182,9 +252,9 @@ class Canvas():
                 if self.grid[dc][dr] != None:
                     key = self.grid[dc][dr]
                     line = self.lines.pop(key)
-                    for point in line.points:
-                        x, y = point
-                        self.grid[y][x] = None
+                    for (r, c) in line.points:
+                        self.grid[r][c] = None
+
 
 class Line():
     """
@@ -193,6 +263,7 @@ class Line():
 
     def __init__(self, color, origin):
         self.color = color
+        self.origin = origin
         self.points = [origin]
         self.active = True
 
