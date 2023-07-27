@@ -4,9 +4,6 @@ from hands import HandDetector
 from canvas import Canvas
 
 
-background_mode= 'CAM'
-#background_mode= 'BLACK'
-
 
 def main():
     # Loading the default webcam of PC.
@@ -36,7 +33,7 @@ def main():
             request = detector.determine_gesture(frame, black_frame)
             frame = black_frame
         else:    
-            request = detector.determine_gesture(frame, False)
+            request = detector.determine_gesture(frame, frame)
 
    
         gesture = request.get('gesture')
@@ -96,6 +93,7 @@ def main():
                background_mode = "CAM"
             else: 
               background_mode = "BLACK"
+            detector.background_mode  = background_mode
 
         if stroke == ord('q') or stroke == 27: # press 'q' or 'esc' to quit
             break
