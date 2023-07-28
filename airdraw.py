@@ -20,7 +20,9 @@ def main():
     canvas = Canvas(width, height)
     detector = HandDetector(background_mode)
 
-   
+    # initialize AirDraw window
+    cv.namedWindow("Airdraw", cv.WINDOW_AUTOSIZE)
+
     
     # Keep looping
     while True:
@@ -94,6 +96,14 @@ def main():
             else: 
               background_mode = "BLACK"
             detector.background_mode  = background_mode
+
+        if stroke == ord('f'): # press 'f' to go full screen
+           cv.destroyWindow('Airdraw')
+           cv.namedWindow("Airdraw", cv.WINDOW_NORMAL)
+           cv.setWindowProperty("Airdraw", cv.WND_PROP_FULLSCREEN, cv.WINDOW_FULLSCREEN)
+           # Comment out next line if you do not allow distortion (filling bars will show up)
+           cv.setWindowProperty("Airdraw", cv.WND_PROP_ASPECT_RATIO, cv.WINDOW_FREERATIO)
+
 
         if stroke == ord('q') or stroke == 27: # press 'q' or 'esc' to quit
             break
