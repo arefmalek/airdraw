@@ -8,9 +8,10 @@ class HandDetector():
     class that deals with the hand processing of the project
     """
 
-    def __init__(self, mode = False, max_hands = 1):
+    def __init__(self, background_mode, mode = False, max_hands = 1):
         # setup
         self.max_hands = max_hands
+        self.background_mode=background_mode
         self.mode = mode
         # hand drawing stuff
         self.hands = mp.solutions.hands.Hands(self.mode, self.max_hands)
@@ -18,7 +19,7 @@ class HandDetector():
         # will be used for translation
         self.prev_position = None
 
-    def detect_hands(self, img, draw=True):
+    def detect_hands(self, img, bg, draw=True):
         """
         Detects hands from images and draws them if requested
 
@@ -26,6 +27,9 @@ class HandDetector():
         """
         img_rgb = cv.cvtColor(img, cv.COLOR_BGR2RGB) # I think we need RGB
         self.results = self.hands.process(img_rgb)
+
+        if self.background_mode == "BLACK": 
+           img = bg
 
         if self.results.multi_hand_landmarks and draw:
             for hand_landmark in self.results.multi_hand_landmarks:
@@ -126,12 +130,12 @@ class HandDetector():
         # otherwise hover
         return "HOVER"
     
-    def determine_gesture(self, frame):
+    def determine_gesture(self, frame, background):
         """
         Takes in the image and just returns a JSON with the information
         """
 
-        frame = self.detect_hands(frame)
+        frame = self.detect_hands(frame, background)
         landmark_list = self.detect_landmarks(frame.shape)
         gesture = None 
 
