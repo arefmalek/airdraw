@@ -2,6 +2,7 @@ import cv2 as cv
 import numpy as np
 
 from hands import Gesture, HandDetector
+from util import xy_euclidean_dist
 
 from enum import Enum
 
@@ -36,10 +37,11 @@ class Canvas():
                 (Color.GREEN, "GREEN"),
                 (Color.RED, "RED"),
                 ]
+        self.rows = rows
+        self.columns = columns
         self.color = Color.BLUE # only really used to initialize lines
         self.lines = {} # whole list of points
         self.currLine = None # this is the line we're adding to 
-        self.grid = [[None] * columns] * rows # pointers to our functions
         self.blackout_background = False
 
     def switch_background(self):
@@ -101,7 +103,7 @@ class Canvas():
         leftCoord, topCoord = buttons_coords[0]
         rightCoord, bottomCoord = buttons_coords[1]
 
-        _, c, r =  fingertip_point
+        r, c =  fingertip_point
         return leftCoord <= c <= rightCoord and topCoord <= r <= bottomCoord
 
     def update_state(self, frame_shape, data = {}):
@@ -123,7 +125,6 @@ class Canvas():
                 # Clear state.
                 self.end_line()
                 self.lines = {}
-                self.grid = [[None] * len(self.grid[0]) for row in range(len(self.grid))]
                 break
         
         # overlap with color button
@@ -238,7 +239,7 @@ class Canvas():
         """
 
         row, col = point 
-        if not 0 <= row < len(self.grid) or not 0 <= col < len(self.grid[0]):
+        if not 0 <= row < self.rows or not 0 <= col < self.columns:
             return
 
         # if there isn't an active line being drawn, start one
@@ -251,8 +252,6 @@ class Canvas():
             # get the current line, add the new point to the linked list
             self.currLine.points.append(point)
 
-        # gotta update our grid
-        self.grid[row][col] = self.currLine.get_origin()
         
     def end_line(self):
         """
@@ -292,6 +291,7 @@ class Canvas():
                         )
         return frame
 
+
     def translate_mode(self, position, radius, shift):
         """
         Works as following:
@@ -300,9 +300,7 @@ class Canvas():
         2. for each line:
             shift each point in the line by the shift variable
         
-        This should move each grid point where it needs to be, 
-        which leaves is ready to draw on our regular draw function.
-        """
+       """
         # FIXME: introducing extra lines unnecessarily into the program
 
         r, c = position
@@ -311,8 +309,6 @@ class Canvas():
 
         # we should be able to collect all unique origin points 
         uniqueLines = set()
-        xy_euclidean_dist = lambda a1, a2: ((a1[0] - a2[0]) ** 2 + (a1[1] - a2[1]) ** 2) ** 0.5 
-
         for origin, line in self.lines.items():
             for p in line.points:
                 if xy_euclidean_dist(p, position) <= radius:
@@ -321,7 +317,6 @@ class Canvas():
         
         # debugging line
         sortedLines = sorted(list(uniqueLines))
-        print(sortedLines, [line for line in self.lines.keys()])
 
         # for each origin point in the circle
         for og_point in sortedLines:
@@ -330,29 +325,18 @@ class Canvas():
             translation = []
             for r, c in line.points:
                 trans_r, trans_c = r + shift[0], c + shift[1]
-                # if the translated point is in the grid, add it, otw skip
-                if (0 <= trans_r < len(self.grid)) and (0 <= trans_c < len(self.grid[0])):
+                if (0 <= trans_r < self.rows) and (0 <= trans_c < self.columns):
                     translation.append((trans_r, trans_c))
                 else:
-                    res = (0 <= trans_r < len(self.grid)) and (0 <= trans_c < len(self.grid[0]))
-                    print("failed validation", res)
                     break
 
             # Check if transformation is valid
             if len(translation) == len(line.points):
-                # reset the grid for this line
                 self.lines.pop(og_point)
-                for r, c in line.points:
-                    self.grid[r][c] = None
 
-                # update line state and then add it back to the grid
                 line.points = translation
                 new_origin = line.get_origin()
                 assert(og_point != new_origin)
-
-                # add the points back to the grid
-                for r, c in line.points:
-                    self.grid[r][c] = line.get_origin() # map the new points on the grid
 
                 # put the value back in the lines
                 self.lines[line.get_origin()] = line
@@ -369,18 +353,15 @@ class Canvas():
         """
         midpoint_r, midpoint_c = position
 
-        for dr in range(
-                max(0, midpoint_r - radius), 
-                min(midpoint_r + radius, len(self.grid))
-                ):
-            for dc in range(
-                            max(0, midpoint_c - radius), 
-                            min(midpoint_c + radius, len(self.grid[0]))):
-                if self.grid[dr][dc] != None:
-                    key = self.grid[dr][dc]
-                    line = self.lines.pop(key)
-                    for (r, c) in line.points:
-                        self.grid[r][c] = None
+        origin_points = []
+        for origin, lines in self.lines.items():
+            for point in lines.points:
+                if xy_euclidean_dist(point, position) <= radius:
+                    origin_points.append(origin)
+                    break
+        
+        for origins in origin_points:
+            self.lines.pop(origins)
 
 
 class Line():
@@ -447,7 +428,7 @@ def main():
 if __name__ == '__main__':
     # replay("./hands_basic_gestures.mp4")
     # replay("./buttons_overlap.mp4")
-    # replay("./translation_debug.mp4")
-    replay("./eraser_debug.mp4")
+    replay("./translation_debug.mp4")
+    # replay("./eraser_debug.mp4")
 
     # main()

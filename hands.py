@@ -3,6 +3,7 @@ import mediapipe as mp
 import numpy as np
 from enum import Enum
 
+from util import xy_euclidean_dist, vectorize, cos_angle
 class Gesture(Enum):
     DRAW = 'DRAW'
     HOVER = 'HOVER'
@@ -20,8 +21,6 @@ class HandDetector():
     def __init__(self, mode = False, max_hands = 1):
         # setup
         self.max_hands = max_hands
-        # TODO: move background mode to canvas class
-        # self.background_mode = background_mode
         self.mode = mode
         # hand drawing stuff
         self.hands = mp.solutions.hands.Hands(self.mode, self.max_hands)
@@ -73,8 +72,6 @@ class HandDetector():
             String that matches the gesture we have
         """
 
-        vectorize = lambda u, v: [v[i] - u[i] for i in range(len(v))]
-
         # adding all vectors
         # palm vectors
         palm_index_vector = vectorize(landmarks[0], landmarks[5])
@@ -87,10 +84,6 @@ class HandDetector():
         middle_vector = vectorize(landmarks[10], landmarks[12])
         ring_vector = vectorize(landmarks[14], landmarks[16])
         pinky_vector = vectorize(landmarks[18], landmarks[20])
-
-        vector_magnitude = lambda vector: sum(dim**2 for dim in vector)**.5
-        cos_angle = lambda u, v: np.dot(u, v) / (vector_magnitude(u)
-                * vector_magnitude(v))
 
         # really just to debug
         if debug:
@@ -149,14 +142,17 @@ class HandDetector():
             return {}
 
 
-        # just writing in finger info
-        index_fing_tip = landmark_list[8] # coordinates of tip of index fing
-        mid_fing_tip = landmark_list[12]
-        ring_fing_tip = landmark_list[16]
-        pinky_fing_tip = landmark_list[20]
+        # only extract the row, col before sending it literally anywhere else
+        _, index_c, index_r = landmark_list[8]
+        _, mid_c, mid_r = landmark_list[12]
+        _, ring_c, ring_r = landmark_list[16]
+        _, pinky_c, pinky_r = landmark_list[20]
 
-        # Only use the x and y coordinates, depth is not necessary here.
-        xy_euclidean_dist = lambda a1, a2: ((a1[1] - a2[1]) ** 2 + (a1[2] - a2[2]) ** 2) ** 0.5 
+        # just writing in finger info
+        index_fing_tip = (index_r, index_c) # coordinates of tip of index fing
+        mid_fing_tip = (mid_r, mid_c)
+        ring_fing_tip = (ring_r, ring_c)
+        pinky_fing_tip = (pinky_r, pinky_c)
 
         # data sent to canvas:
         # formatted in row, column format because I index the internal grid that way.
@@ -173,8 +169,8 @@ class HandDetector():
         if gesture == Gesture.DRAW:
             distance = xy_euclidean_dist(index_fing_tip, mid_fing_tip)
 
-            _, index_c, index_r = index_fing_tip
-            _, mid_c, mid_r = mid_fing_tip
+            index_r, index_c = index_fing_tip
+            mid_r, mid_c = mid_fing_tip
 
             midpoint_r, midpoint_c = int((index_r + mid_r) * 0.5), int((index_c + mid_c) * 0.5)
 
@@ -183,8 +179,8 @@ class HandDetector():
 
         elif gesture == Gesture.ERASE:
             distance = xy_euclidean_dist(index_fing_tip, ring_fing_tip)
-            _, index_c, index_r = index_fing_tip
-            _, ring_c, ring_r = ring_fing_tip
+            index_r, index_c = index_fing_tip
+            ring_r, ring_c = ring_fing_tip
 
             midpoint_r, midpoint_c = int((index_r + ring_r) * 0.5), int((index_c + ring_c) * 0.5)
 
@@ -195,8 +191,8 @@ class HandDetector():
         elif gesture == Gesture.TRANSLATE:
             distance = xy_euclidean_dist(index_fing_tip, pinky_fing_tip)
 
-            _, index_c, index_r = index_fing_tip
-            _, pinky_c, pinky_r = pinky_fing_tip
+            index_r, index_c = index_fing_tip
+            pinky_r, pinky_c = pinky_fing_tip
 
             midpoint_r, midpoint_c = int((index_r + pinky_r) * 0.5), int((index_c + pinky_c) * 0.5)
 
@@ -212,9 +208,8 @@ class HandDetector():
             post['shift'] = shift
         elif gesture  == Gesture.HOVER:
             # metadata to update self.prev_position
-            _, index_c, index_r = index_fing_tip
+            index_r, index_c = index_fing_tip
             midpoint_r, midpoint_c = int(index_r), int(index_c)
-
         
         # Update previous position for next time we call translation
         self.prev_position = (midpoint_r, midpoint_c)
