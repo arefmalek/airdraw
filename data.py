@@ -1,9 +1,7 @@
 import cv2 as cv
+import argparse
 
-def record(fname):
-    if not fname.endswith(".mp4"):
-        print("filename must be mp4 extension. Please try again")
-
+def record(fname):    
     print("recording ", fname)
     cam = cv.VideoCapture(0)
 
@@ -35,12 +33,13 @@ def replay(fname):
     print("replaying", fname)
 
     cap = cv.VideoCapture(fname)
-
+    print("captured")
     if (not cap.isOpened()):
         print("Error opening video file")
         return
 
-    while cap.isOpened() and (cv.waitKey(0) & 0xFF != ord('q')):
+    print("waiting to open")
+    while cap.isOpened(): # and (cv.waitKey(0) & 0xFF != ord('q')):
         ret, img = cap.read()
 
         # replay is completed when the video capture no longer has any frames to read.
@@ -48,20 +47,37 @@ def replay(fname):
             cv.imshow('Camera', img)
         else:
             break
+        print("img", img.size)
+
 
     cap.release()
     cv.destroyAllWindows()
 
     print("replay complete", fname)
 
-if __name__ == "__main__":
-    print("what file name are we going to record/replay?")
-    fname = input()
-    print("record or replay (y for record, n for replay, everything else ignored)")
-    mode = input()
 
-    if mode == 'y':
-        record(fname)
-    elif mode == 'n':
-        replay(fname)
+def main():
+    parser = argparse.ArgumentParser(
+        prog='data.py',
+        description='data collections tools'
+    )
+    parser.add_argument("-m", "--mode")
+    parser.add_argument("-f", "--filename")
+    args = parser.parse_args()
+
+    if not args.filename.endswith(".mp4"):
+        print(f"filename({args.filename}) must end with .mp4")
+        return False
+    
+    if args.mode == 'replay':
+        replay(args.filename)
+    elif args.mode == "record":
+        record(args.filename)
+    else:
+        print(f"data mode must fall into ['replay', 'record'], provided {args.mode}")
+        return False
+
+
+if __name__ == "__main__":
+    main()
 

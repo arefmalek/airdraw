@@ -6,7 +6,12 @@ from hands import Gesture, HandDetector
 from enum import Enum
 
 # FIXME: 
-# use a good spatial query system
+# use a good spatial query system (is just iterating over literally every point the best we can do?) 
+# Gauging this would need the following:
+#   How many data points could i realistically collect over a 2-minute episode?
+#   How much does it cost to iterate and compare versus 
+#       1. storing waypoints in a grid, and then searching every pixel in the grid
+#       2. Storing all points in some sort of query system (intuition screaming quadtree).
 # have consistent usage of row, col convention between mediapipe, canvas, and opencv. 
 # keep all data intialized at startup and only completely transform in function
 
