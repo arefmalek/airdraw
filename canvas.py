@@ -2,7 +2,7 @@ import cv2 as cv
 import numpy as np
 
 from hands import Gesture, HandDetector
-from util import xy_euclidean_dist
+from util import xy_euclidean_dist, clamp
 
 from enum import Enum
 
@@ -17,11 +17,19 @@ from enum import Enum
 # keep all data intialized at startup and only completely transform in function
 
 class Color(Enum):
+    """Please remember these are in BGR coordinates!"""
     GRAY = (122, 122, 122)
     WHITE = (255, 255, 255)
     BLUE = (255,0,0)
     GREEN =(0,255,0)
     RED = (0,0,255)
+    PURPLE = (255, 0, 255)
+    YELLOW = (0, 255, 255)
+
+class Shape(Enum):
+    CIRCLE = Color.BLUE
+    SQUARE = Color.GRAY
+    LINE = Color.GREEN
 
 class Canvas():
     """ 
@@ -32,16 +40,21 @@ class Canvas():
     """
     def __init__(self, rows, columns):
         # FIXME: just make this deterministic via list
-        self.colors = [
-                (Color.BLUE, "BLUE"),
-                (Color.GREEN, "GREEN"),
-                (Color.RED, "RED"),
-                ]
+        self.colors = [ Color.BLUE, Color.GREEN, Color.RED ]
+        self.shapes = [ Shape.LINE, Shape.CIRCLE, Shape.SQUARE ]
         self.rows = rows
         self.columns = columns
         self.color = Color.BLUE # only really used to initialize lines
+        self.shape = Shape.LINE
         self.lines = {} # whole list of points
-        self.currLine = None # this is the line we're adding to 
+        self.circles = [] # whole list of points
+        self.squares = [] # whole list of squares
+        self.currLine = Line(None, self.color)# this is the line we're adding to 
+        self.currLine.active = False
+        self.currCircle = Circle(None, None, self.color)# this is the line we're adding to 
+        self.currCircle.active = False
+        self.currSquare = Square(None, None, self.color)
+        self.currSquare.active = False
         self.blackout_background = False
 
     def switch_background(self):
@@ -55,7 +68,11 @@ class Canvas():
         Args:
             frame_shape: tuple describing frame shape
         Return:
-            List with elements holding the following schema (button name, button BGR colors, top-left coordinate, bottom-right coordinate)
+            List with elements holding the following schema: (button name, button BGR colors, top-left coordinate, bottom-right coordinate)
+            Ordering of the elements is as follows:
+                1. Clear all button
+                2. Color buttons
+                3. Shape buttons
         """
 
         # Obtains the proportionally correct buttons for the frame shape given. 
@@ -79,24 +96,45 @@ class Canvas():
                 (clear_button_width - clear_button_width_border, clear_button_height - clear_button_height_border)
             ))
 
-        n = len(self.colors)
+        num_colors = len(self.colors)
         remaining_width = frame_width - clear_button_width
 
-        color_button_width = int(remaining_width / n)
+        color_button_width = remaining_width // num_colors 
         color_button_height = int(clear_button_height * 0.7)
         color_button_border_width = int(color_button_width * 0.05)
         color_button_border_height = int(color_button_height * 0.05)
         curr_button_offset_width = clear_button_width
 
-        for color, color_str in self.colors:
+        # FIXME: use color.name instead?
+        for color in self.colors:
             coords.append((
-                color_str,
+                color.name,
                 color.value,
                 (curr_button_offset_width  + color_button_border_width, color_button_border_height),
                 (curr_button_offset_width  + color_button_width - color_button_border_width, color_button_height - color_button_border_height)
             ))
 
             curr_button_offset_width += color_button_width
+        
+        num_shapes = len(Shape)
+        remaining_height = frame_height - clear_button_height
+        shape_button_height = (remaining_height // num_shapes)
+        shape_button_width = int(clear_button_width * 0.7)
+        shape_button_border_height = int(shape_button_height * 0.05)
+        shape_button_border_width = int(shape_button_width * 0.05)
+
+        curr_button_offset_height = clear_button_height
+
+        for shape in Shape:
+            coords.append((
+                shape.name,
+                shape.value.value,
+                (shape_button_border_width, curr_button_offset_height + shape_button_border_height),
+                (shape_button_width - shape_button_border_width, curr_button_offset_height + shape_button_height - shape_button_border_height)
+            ))
+
+            curr_button_offset_height += shape_button_height
+        
         return coords
 
     def buttons_overlap(self, buttons_coords, fingertip_point):
@@ -112,7 +150,10 @@ class Canvas():
         """
         buttons_coord = self.get_buttons_coords(frame_shape)
         clear_button = buttons_coord[0]
-        color_buttons = buttons_coord[1:]
+        button_offset = 1
+        color_buttons = buttons_coord[button_offset:button_offset+len(self.colors)]
+        button_offset += len(self.colors)
+        shape_buttons = buttons_coord[button_offset:button_offset+len(Shape)]
 
         gesture = data.get("gesture", Gesture.HOVER)
 
@@ -123,8 +164,10 @@ class Canvas():
         for coord in gesture_finger_points:
             if self.buttons_overlap(clear_button[2:], coord):
                 # Clear state.
-                self.end_line()
+                self.end_drawing()
                 self.lines = {}
+                self.circles = []
+                self.squares = []
                 break
         
         # overlap with color button
@@ -132,25 +175,41 @@ class Canvas():
             button_color_str = color_button_metadata[0]
             for coord in gesture_finger_points:
                 if self.buttons_overlap(color_button_metadata[2:], coord):
+                    new_color = [color for color in self.colors if color.name == button_color_str][0]
                     if gesture == Gesture.DRAW:
-                        self.end_line()
+                        self.end_drawing()
                     # assign the color value to our metadata
-                    self.color = [color for color, color_str in self.colors if color_str == button_color_str][0]
+                    self.color = new_color
+
+        # overlap with shape button
+        for shape_button_metadata in shape_buttons:
+            shape_str = shape_button_metadata[0]
+            for coord in gesture_finger_points:
+                if self.buttons_overlap(shape_button_metadata[2:], coord):
+                    new_shape = [shape for shape in self.shapes if shape.name == shape_str][0]
+                    if new_shape != self.shape and Gesture.DRAW:
+                        self.end_drawing()
+                    self.shape = new_shape
+
         if gesture == Gesture.DRAW:
             midpoint_r, midpoint_c = data.get('origin')
             radius = int(data.get('radius')) # varying sizes
 
-            self.push_point((midpoint_r, midpoint_c))
-        elif gesture == Gesture.HOVER:
-            self.end_line()
-        elif gesture == Gesture.ERASE:
-            self.end_line()
+            if self.shape == Shape.LINE:
+                self.push_point((midpoint_r, midpoint_c))
+            if self.shape == Shape.CIRCLE:
+                self.update_circle((midpoint_r, midpoint_c))
+            if self.shape == Shape.SQUARE:
+                self.update_square((midpoint_r, midpoint_c))
 
+        elif gesture == Gesture.HOVER:
+            self.end_drawing()
+        elif gesture == Gesture.ERASE:
             midpoint_r, midpoint_c = data.get('origin')
             radius = int(data.get('radius'))
             self.erase_mode((midpoint_r, midpoint_c), radius)
         elif gesture == Gesture.TRANSLATE:
-            self.end_line()
+            self.end_drawing()
 
             midpoint_r, midpoint_c = data.get('origin')
             radius = int(data.get('radius'))
@@ -177,11 +236,15 @@ class Canvas():
                                 (button_left, button_top),
                                 (button_right, button_bottom),
                                 button_color_rgb, -1)
+
+            button_width = button_right - button_left
+            button_height = button_bottom - button_top
+
             cv.putText(frame, button_str, 
-                    (button_left + int((button_right - button_left)* .3), int(button_bottom* .5)), 
+                    (button_left + int((button_width)* .3), int(button_top + button_height * .5)), 
                     cv.FONT_HERSHEY_SIMPLEX, .5, Color.WHITE.value, 2, cv.LINE_AA)
             # highlight selected color
-            if button_color_rgb == self.color.value:
+            if button_str == self.color.name or button_str == self.shape.name:
                 frame = cv.rectangle(frame, 
                     (button_left, button_top),
                     (button_right, button_bottom),
@@ -195,7 +258,7 @@ class Canvas():
 
             img = frame.copy()
             # purple cuz im royal
-            cv.circle(img, (midpoint_c, midpoint_r), int(radius), (255,0,255), -1)
+            cv.circle(img, (midpoint_c, midpoint_r), int(radius), Color.PURPLE.value, -1)
             alpha = 0.4
             frame = cv.addWeighted(frame, alpha, img, 1-alpha, 0)
  
@@ -207,7 +270,7 @@ class Canvas():
 
             # put circle on the map, and add some opacity
             img = frame.copy()
-            cv.circle(img, (midpoint_c, midpoint_r), int(radius), (0,255,255), -1)
+            cv.circle(img, (midpoint_c, midpoint_r), int(radius), Color.YELLOW.value, -1)
             alpha = 0.4
             frame = cv.addWeighted(frame, alpha, img, 1-alpha, 0)
 
@@ -222,6 +285,8 @@ class Canvas():
             frame = cv.addWeighted(frame, alpha, img, 1-alpha, 0)
         
         frame = self.draw_lines(frame)
+        frame = self.draw_circles(frame)
+        frame = self.draw_squares(frame)
 
         return frame
     
@@ -229,6 +294,34 @@ class Canvas():
         self.update_state(frame.shape, data)
         frame = self.draw_canvas(frame, data)
         return frame
+
+    def update_circle(self, new_point):
+        """ Maintain state of the currently drawn circle. If it doesnt exist, initialize it and pass pointer to self.circles"""
+        point_row, point_col = new_point
+
+        if not (0 <= point_row < self.rows and 0 <= point_col < self.columns):
+            return
+        
+        if self.currCircle.active == False:
+            self.currCircle = Circle((point_row, point_col), 5, self.color)
+            self.circles.append(self.currCircle)
+        else:
+            dist = int(xy_euclidean_dist(self.currCircle.origin, new_point))
+            self.currCircle.radius = dist
+    
+    def update_square(self, new_point):
+        """Updates state of the currently drawn square (resizing it). If it doesn't exist, initialize it and pass pointer to self.squares"""
+        point_row, point_col = new_point
+
+        if not (0 <= point_row < self.rows and 0 <= point_col < self.columns):
+            return
+ 
+        if self.currSquare.active == False:
+            # just initialize with some size
+            self.currSquare = Square(new_point, (point_row + 5, point_col + 5), self.color)
+            self.squares.append(self.currSquare)
+        else:
+            self.currSquare.bottomRight = new_point
 
     def push_point(self, point):
         """
@@ -241,9 +334,9 @@ class Canvas():
         row, col = point 
         if not 0 <= row < self.rows or not 0 <= col < self.columns:
             return
-
+        # TODO: replace hashmap approach with just generic list
         # if there isn't an active line being drawn, start one
-        if self.currLine == None or self.lines[self.currLine.get_origin()].active == False:
+        if self.currLine.active == False:
             # we need to initialize a line
             line = Line(self.color, point) # start a line with a new color
             self.currLine = line
@@ -252,14 +345,11 @@ class Canvas():
             # get the current line, add the new point to the linked list
             self.currLine.points.append(point)
 
-        
-    def end_line(self):
-        """
-            deactivates current line 
-        """
-        if self.currLine != None and len(self.lines) > 0:
-            self.lines[self.currLine.get_origin()].active = False
-        self.currLine = None
+    def end_drawing(self):
+        """Ends active drawing"""
+        self.currLine.active = False
+        self.currCircle.active = False
+        self.currSquare.active = False
 
     def draw_lines(self, frame):
         """
@@ -270,7 +360,6 @@ class Canvas():
 
         Returns:
         Image with all the different lines drawn on top of it
-        
         """
         # self.lines = [{"color": "BLUE",
         #               "points": [(1, 2), (5, 9), ...]}, 
@@ -289,6 +378,25 @@ class Canvas():
                         line.color.value,
                         5
                         )
+        return frame
+    
+    def draw_circles(self, frame):
+        for circle in self.circles:
+            orig_row, orig_col = circle.origin
+            cv.circle(frame, (orig_col, orig_row), circle.radius, circle.color.value, 3)
+        return frame
+    
+    def draw_squares(self, frame):
+        for square in self.squares:
+            topRow, leftCol = square.topLeft
+            bottomRow, rightCol = square.bottomRight
+            frame = cv.rectangle(
+                frame,
+                (leftCol, topRow),
+                (rightCol, bottomRow),
+                square.color.value,
+                5
+            )
         return frame
 
 
@@ -340,6 +448,13 @@ class Canvas():
 
                 # put the value back in the lines
                 self.lines[line.get_origin()] = line
+        
+        for i, circle in enumerate(self.circles):
+            if xy_euclidean_dist(position, circle.origin) <= (radius + circle.radius):
+                new_origin = (circle.origin[0] + shift[0], circle.origin[1] + shift[1])
+                circle.origin = new_origin
+        
+
 
     # start of erase mode code
     def erase_mode(self, position, radius):
@@ -359,10 +474,26 @@ class Canvas():
                 if xy_euclidean_dist(point, position) <= radius:
                     origin_points.append(origin)
                     break
-        
+
         for origins in origin_points:
             self.lines.pop(origins)
 
+        circles_to_keep = []
+        for circle in self.circles:
+            if circle.overlaps_circle(position, radius):
+                continue
+            else:
+                circles_to_keep.append(circle)
+        self.circles = circles_to_keep
+
+        squares_to_keep = []
+        for square in self.squares:
+            if square.overlaps_circle(position, radius):
+                continue
+            else:
+                squares_to_keep.append(square)
+
+        self.squares = squares_to_keep
 
 class Line():
     """
@@ -381,6 +512,80 @@ class Line():
         return f"\ncolor({self.color}) \
                 \n\tactive({self.active}) \
                 \n\tpoints({self.points})"
+
+class Circle():
+    """Helper class to place circles on screen"""
+    def __init__(self, origin, radius: int, color: Color):
+        self.origin = origin
+        self.radius = radius
+        self.color = color
+        self.active = True
+    
+    def get_radius(self):
+        return self.radius
+    
+    def overlaps_circle(self, point, other_radius) -> bool:
+        dist = xy_euclidean_dist(self.origin, point)
+        return max(self.radius - other_radius, 0) <= dist <= self.radius + other_radius
+
+    
+    def __repr__(self):
+        return f"Origin:{self.origin}\tRadius:{self.radius}\tColor:{self.color}"
+
+class Square():
+    def __init__(self, topLeft, bottomRight, color: Color):
+        self.topLeft = topLeft
+        self.bottomRight = bottomRight
+        self.color = color
+        self.active = True
+
+    def get_coords(self):
+        topRow, leftCol = self.topLeft
+        bottomRow, rightCol = self.bottomRight
+
+        return (topRow, leftCol, bottomRow, rightCol)
+    
+    def get_height(self):
+        topRow, leftCol, bottomRow, rightCol = self.get_coords()
+        return (bottomRow - topRow)
+
+    def get_width(self):
+        topRow, leftCol, bottomRow, rightCol = self.get_coords()
+        return (rightCol - leftCol)
+
+    def overlaps_circle(self, point, radius) -> bool:
+        """
+        Returns the distance a given point has to the nearest point on the square.
+        NOTICE: this function clamps distance, so this is only good for comparing distance with radius, not entirely accurate!
+        Args
+            point: (row, col) of the query point
+        """
+        point_r, point_c = point
+
+        topRow, leftCol, bottomRow, rightCol = self.get_coords()
+        square_center_row = (topRow + bottomRow) // 2
+        square_center_col = (leftCol + rightCol) // 2
+
+        point_dist_r = abs(point_r - square_center_row) # compare against height
+        point_dist_c = abs(point_c - square_center_col) # compare against width
+        half_height = self.get_height() // 2
+        half_width = self.get_width() // 2
+        square_border_row_dist = abs(point_dist_r - half_height)
+        square_border_col_dist = abs(point_dist_c - half_width)
+
+        print(square_border_col_dist, square_border_row_dist)
+
+        if (square_border_row_dist > radius): return False
+        if (square_border_col_dist > radius): return False
+
+        if (square_border_row_dist <= radius): return True
+        if (square_border_col_dist <= radius): return True
+
+        cornerDist = (square_border_col_dist) ** 2 + (square_border_row_dist) ** 2
+        return cornerDist <= radius**2
+
+    def __repr__(self):
+        return f"topLeft: {self.topLeft}\tbottomRight:{self.bottomRight}\tcolor:{self.color}"
 
 def replay(fname):
     print("replaying", fname)
@@ -428,7 +633,8 @@ def main():
 if __name__ == '__main__':
     # replay("./hands_basic_gestures.mp4")
     # replay("./buttons_overlap.mp4")
-    replay("./translation_debug.mp4")
+    # replay("./translation_debug.mp4")
+    replay("./hands_drawing_ui.mp4")
     # replay("./eraser_debug.mp4")
 
     # main()

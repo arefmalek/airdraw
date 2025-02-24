@@ -3,6 +3,8 @@ import numpy as np
 def xy_euclidean_dist(a1, a2): 
     return ((a1[0] - a2[0]) ** 2 + (a1[1] - a2[1]) ** 2) ** 0.5 
 
+def clamp(value, lower_bound, upper_bound):
+    return min(upper_bound, max(value, lower_bound))
 
 def vectorize(u, v):
     assert(len(u) == len(v)) # cant vectorize unequal lengths
