@@ -2,7 +2,7 @@ import cv2 as cv
 import numpy as np
 
 from hands import Gesture, HandDetector
-from util import xy_euclidean_dist, clamp
+from util import xy_euclidean_dist
 
 from enum import Enum
 
@@ -51,9 +51,9 @@ class Canvas():
         self.squares = [] # whole list of squares
         self.currLine = Line(None, self.color)# this is the line we're adding to 
         self.currLine.active = False
-        self.currCircle = Circle(None, None, self.color)# this is the line we're adding to 
+        self.currCircle = Circle((-1, -1), -1, self.color)# this is the line we're adding to 
         self.currCircle.active = False
-        self.currSquare = Square(None, None, self.color)
+        self.currSquare = Square((-1, -1), (-1, -1), self.color)
         self.currSquare.active = False
         self.blackout_background = False
 
@@ -315,13 +315,13 @@ class Canvas():
 
         if not (0 <= point_row < self.rows and 0 <= point_col < self.columns):
             return
- 
+
         if self.currSquare.active == False:
             # just initialize with some size
             self.currSquare = Square(new_point, (point_row + 5, point_col + 5), self.color)
             self.squares.append(self.currSquare)
         else:
-            self.currSquare.bottomRight = new_point
+            self.currSquare.opposite = new_point
 
     def push_point(self, point):
         """
@@ -371,7 +371,7 @@ class Canvas():
                     continue
                 prev_r, prev_c = line.points[i-1]
                 r, c = point
-                cv.line(
+                cv.line( 
                         frame, 
                         (prev_c, prev_r), 
                         (c, r), 
@@ -388,8 +388,7 @@ class Canvas():
     
     def draw_squares(self, frame):
         for square in self.squares:
-            topRow, leftCol = square.topLeft
-            bottomRow, rightCol = square.bottomRight
+            topRow, leftCol, bottomRow, rightCol = square.get_coords()
             frame = cv.rectangle(
                 frame,
                 (leftCol, topRow),
@@ -449,12 +448,17 @@ class Canvas():
                 # put the value back in the lines
                 self.lines[line.get_origin()] = line
         
-        for i, circle in enumerate(self.circles):
-            if xy_euclidean_dist(position, circle.origin) <= (radius + circle.radius):
+        for i, circle in enumerate(self.circles):                
+            if circle.overlaps_circle(position, radius):
                 new_origin = (circle.origin[0] + shift[0], circle.origin[1] + shift[1])
                 circle.origin = new_origin
-        
 
+        for i, square in enumerate(self.squares):
+            if square.overlaps_circle(position, radius):
+                new_anchor = square.anchor[0] + shift[0], square.anchor[1] + shift[1]
+                new_opposite = square.opposite[0] + shift[0], square.opposite[1] + shift[1]
+                square.anchor = new_anchor
+                square.opposite = new_opposite
 
     # start of erase mode code
     def erase_mode(self, position, radius):
@@ -466,8 +470,6 @@ class Canvas():
             position: (x, y) coordinates of the position
             radius: the radius (in pixels) of our eraser
         """
-        midpoint_r, midpoint_c = position
-
         origin_points = []
         for origin, lines in self.lines.items():
             for point in lines.points:
@@ -532,17 +534,19 @@ class Circle():
     def __repr__(self):
         return f"Origin:{self.origin}\tRadius:{self.radius}\tColor:{self.color}"
 
+
 class Square():
-    def __init__(self, topLeft, bottomRight, color: Color):
-        self.topLeft = topLeft
-        self.bottomRight = bottomRight
+    def __init__(self, anchor, opposite, color: Color):
+        self.anchor = anchor
+        self.opposite = opposite
         self.color = color
         self.active = True
 
     def get_coords(self):
-        topRow, leftCol = self.topLeft
-        bottomRow, rightCol = self.bottomRight
-
+        topRow = min(self.anchor[0], self.opposite[0])
+        bottomRow = max(self.anchor[0], self.opposite[0])
+        leftCol = min(self.anchor[1], self.opposite[1])
+        rightCol = max(self.anchor[1], self.opposite[1])
         return (topRow, leftCol, bottomRow, rightCol)
     
     def get_height(self):
@@ -555,10 +559,11 @@ class Square():
 
     def overlaps_circle(self, point, radius) -> bool:
         """
-        Returns the distance a given point has to the nearest point on the square.
-        NOTICE: this function clamps distance, so this is only good for comparing distance with radius, not entirely accurate!
+        Returns true if the border of our square overlaps with the circle.
         Args
             point: (row, col) of the query point
+        
+        Math here - https://stackoverflow.com/a/402010
         """
         point_r, point_c = point
 
@@ -573,19 +578,28 @@ class Square():
         square_border_row_dist = abs(point_dist_r - half_height)
         square_border_col_dist = abs(point_dist_c - half_width)
 
-        print(square_border_col_dist, square_border_row_dist)
+        # Too far from the rectangle
+        if (point_dist_r > (half_height + radius)): return False
+        if (point_dist_c > (half_width + radius)): return False
 
-        if (square_border_row_dist > radius): return False
-        if (square_border_col_dist > radius): return False
+        # Too close to the origin
+        if (point_dist_r < (half_height - radius) and point_dist_c < (half_width - radius)): return False
 
-        if (square_border_row_dist <= radius): return True
-        if (square_border_col_dist <= radius): return True
+        # If this code does what I think, it means that 
+        # the row is in [half_height - radius, half_height + radius] 
+        # the col is in [half_width - radius, half_width + radius]
+        assert(half_width - radius <= point_dist_c <= half_width + radius or half_height - radius <= point_dist_r <= half_height + radius)
 
-        cornerDist = (square_border_col_dist) ** 2 + (square_border_row_dist) ** 2
-        return cornerDist <= radius**2
+        # Point is within 
+        if (point_dist_r > half_width and point_dist_c > half_height):
+            cornerDist = (square_border_col_dist) ** 2 + (square_border_row_dist) ** 2
+            return cornerDist <= radius**2
+        
+        return True
 
     def __repr__(self):
-        return f"topLeft: {self.topLeft}\tbottomRight:{self.bottomRight}\tcolor:{self.color}"
+        topRow, leftCol, bottomRow, rightCol = self.get_coords()
+        return f"topLeft: {(topRow, leftCol)}\tbottomRight:{(bottomRow, rightCol)}\tcolor:{self.color}"
 
 def replay(fname):
     print("replaying", fname)

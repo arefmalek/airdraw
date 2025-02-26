@@ -2,6 +2,7 @@ import cv2 as cv
 import mediapipe as mp
 import numpy as np
 from enum import Enum
+from collections import deque
 
 from util import xy_euclidean_dist, vectorize, cos_angle
 class Gesture(Enum):
@@ -9,6 +10,45 @@ class Gesture(Enum):
     HOVER = 'HOVER'
     ERASE = 'ERASE'
     TRANSLATE = 'TRANSLATE'
+
+class LandmarkBuffer():
+    """Helper RingBuffer class to abstract away averaging logic"""
+
+    def __init__(self, max_size):
+        self.buf = deque([], maxlen=max_size)
+
+    def push_landmark(self, element):
+        self.buf.append(element)
+    
+    def average_landmarks(self):
+        assert(len(self.buf) > 0)
+        res = [[0]*3 for i in range(21)]
+        num_points = len(self.buf)
+        
+        for landmark in self.buf:
+            for i, vec in enumerate(landmark):
+                res[i][0] += vec[0]
+                res[i][1] += vec[1]
+                res[i][2] += vec[2]
+        
+        for i, vec in enumerate(res):
+            res[i][0] /= num_points
+            res[i][1] /= num_points
+            res[i][2] /= num_points
+
+        return res
+
+    def displacement(self):
+        """Calculates the residual from the last two landmarks"""
+        res = [[0]*3 for i in range(21)]
+        num_points = len(self.buf)
+        if num_points < 2 or any([len(landmark) != 21 for landmark in self.buf]):
+            return res
+        
+        for i in range(21):
+            for j in range(3):
+                res[i][j] = self.buf[-1][i][j] - self.buf[-2][i][j]
+        return res
 
 class HandDetector():
     """
@@ -27,7 +67,8 @@ class HandDetector():
         self.drawing = mp.solutions.drawing_utils
         self.hand_connections = mp.solutions.hands.HAND_CONNECTIONS
         # will be used for translation
-        self.prev_position = None
+        self.translation_buffer = LandmarkBuffer(5)
+        # we have 0 velocity to start translation
 
     def detect_landmarks(self, frame):
         """
@@ -133,20 +174,18 @@ class HandDetector():
         """
 
         landmark_list = self.detect_landmarks(frame)
-        gesture = Gesture.HOVER
-
-        if len(landmark_list) != 0:
-            gesture = self.detect_gesture(landmark_list)
-        else:
-            # no hand detected, no use of gesture
+        if len(landmark_list) == 0 or np.sum(landmark_list) == 0:
             return {}
-
+        
+        self.translation_buffer.push_landmark(landmark_list)
+        average_landmark_list = self.translation_buffer.average_landmarks()
+        gesture = self.detect_gesture(average_landmark_list)
 
         # only extract the row, col before sending it literally anywhere else
-        _, index_c, index_r = landmark_list[8]
-        _, mid_c, mid_r = landmark_list[12]
-        _, ring_c, ring_r = landmark_list[16]
-        _, pinky_c, pinky_r = landmark_list[20]
+        _, index_c, index_r = average_landmark_list[8]
+        _, mid_c, mid_r = average_landmark_list[12]
+        _, ring_c, ring_r = average_landmark_list[16]
+        _, pinky_c, pinky_r = average_landmark_list[20]
 
         # just writing in finger info
         index_fing_tip = (index_r, index_c) # coordinates of tip of index fing
@@ -199,20 +238,18 @@ class HandDetector():
             post['origin'] = (midpoint_r, midpoint_c)
             post['radius'] = distance * 0.5
 
-            # Call function with previous point
-            if self.prev_position is None:
-                self.prev_position = (midpoint_r, midpoint_c)
-
             # Calculate and store the shift
-            shift = (midpoint_r - self.prev_position[0], midpoint_c - self.prev_position[1])
-            post['shift'] = shift
+            displacement = self.translation_buffer.displacement()
+
+            index_displacement = displacement[8]
+            _, index_c_displacement, index_r_displacement = index_displacement
+
+            post['shift'] = (index_r_displacement, index_c_displacement)
+            
         elif gesture  == Gesture.HOVER:
-            # metadata to update self.prev_position
             index_r, index_c = index_fing_tip
             midpoint_r, midpoint_c = int(index_r), int(index_c)
         
-        # Update previous position for next time we call translation
-        self.prev_position = (midpoint_r, midpoint_c)
  
         # Update previous position position with current point
         return post

@@ -14,4 +14,8 @@ def vector_magnitude(vector):
     return sum([dim**2 for dim in vector]) ** 0.5
 
 def cos_angle(u, v):
+    u_mag = vector_magnitude(u)
+    v_mag = vector_magnitude(v)
+    if (u_mag == 0 or v_mag == 0):
+        return 0
     return np.dot(u, v) / (vector_magnitude(u) * vector_magnitude(v))
