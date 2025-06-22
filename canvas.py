@@ -232,6 +232,7 @@ class Canvas():
             button_left, button_top = button_metadata[2]
             button_right, button_bottom = button_metadata[3]
 
+            # Draw button background
             frame = cv.rectangle(frame, 
                                 (button_left, button_top),
                                 (button_right, button_bottom),
@@ -240,16 +241,31 @@ class Canvas():
             button_width = button_right - button_left
             button_height = button_bottom - button_top
 
-            cv.putText(frame, button_str, 
-                    (button_left + int((button_width)* .3), int(button_top + button_height * .5)), 
-                    cv.FONT_HERSHEY_SIMPLEX, .5, Color.WHITE.value, 2, cv.LINE_AA)
-            # highlight selected color
+            # Draw shape icon if shape button
+            if button_str in [shape.name for shape in Shape]:
+                center_x = button_left + button_width // 2
+                center_y = button_top + button_height // 2
+                icon_size = min(button_width, button_height) // 3
+                if button_str == "LINE":
+                    cv.line(frame, (center_x - icon_size, center_y), (center_x + icon_size, center_y), (255,255,255), 3)
+                elif button_str == "CIRCLE":
+                    cv.circle(frame, (center_x, center_y), icon_size, (255,255,255), 3)
+                elif button_str == "SQUARE":
+                    cv.rectangle(frame, (center_x - icon_size, center_y - icon_size), (center_x + icon_size, center_y + icon_size), (255,255,255), 3)
+
+            # Draw text for color buttons and clear
+            if button_str not in [shape.name for shape in Shape]:
+                cv.putText(frame, button_str, 
+                        (button_left + int((button_width)* .3), int(button_top + button_height * .5)), 
+                        cv.FONT_HERSHEY_SIMPLEX, .5, Color.WHITE.value, 2, cv.LINE_AA)
+
+            # highlight selected color/shape
             if button_str == self.color.name or button_str == self.shape.name:
                 frame = cv.rectangle(frame, 
                     (button_left, button_top),
                     (button_right, button_bottom),
                     Color.WHITE.value,
-                    2)
+                    3)
 
         gesture = data.get('gesture')
         if gesture == Gesture.DRAW:
